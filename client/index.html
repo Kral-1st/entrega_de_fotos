@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carlos Acosta — Fotografía</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0c0c0c; --bg-2: #141414; --border: #222;
+      --text: #e8e8e8; --text-2: #888; --text-3: #444;
+      --accent: #c8a96e; --radius: 6px;
+    }
+    html { font-size: 16px; scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+
+    .hero {
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 60px 24px; text-align: center; position: relative;
+    }
+    .hero-eyebrow { font-size: .75rem; letter-spacing: .2em; text-transform: uppercase; color: var(--accent); margin-bottom: 20px; font-weight: 500; }
+    .hero-name { font-family: 'Playfair Display', serif; font-size: clamp(2.5rem, 8vw, 5rem); font-weight: 400; line-height: 1.1; letter-spacing: -.02em; margin-bottom: 16px; }
+    .hero-name em { font-style: italic; color: var(--accent); }
+    .hero-sub { font-size: clamp(.875rem, 2vw, 1rem); color: var(--text-2); max-width: 420px; line-height: 1.7; margin-bottom: 56px; }
+
+    .code-section { background: var(--bg-2); border: 1px solid var(--border); border-radius: 16px; padding: 28px 32px; width: 100%; max-width: 380px; }
+    .code-section label { display: block; font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; color: var(--text-2); margin-bottom: 12px; font-weight: 500; }
+    .code-input-wrap { display: flex; gap: 10px; }
+    .code-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 1.1rem; font-family: monospace; letter-spacing: .15em; padding: 12px 16px; text-transform: uppercase; outline: none; transition: border-color .15s; }
+    .code-input:focus { border-color: var(--accent); }
+    .code-input::placeholder { letter-spacing: .05em; color: var(--text-3); font-size: .9rem; }
+    .code-btn { background: var(--accent); color: #0c0c0c; border: none; border-radius: var(--radius); padding: 12px 20px; font-size: .875rem; font-weight: 600; cursor: pointer; transition: background .15s, transform .1s; white-space: nowrap; }
+    .code-btn:hover { background: #b8993e; }
+    .code-btn:active { transform: scale(.97); }
+    .code-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .code-error { font-size: .8rem; color: #e74c3c; margin-top: 10px; min-height: 18px; }
+
+    .scroll-hint { position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); color: var(--text-3); font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; display: flex; flex-direction: column; align-items: center; gap: 8px; animation: fadeUpDown 2s ease-in-out infinite; }
+    @keyframes fadeUpDown { 0%, 100% { opacity: .3; transform: translateX(-50%) translateY(0); } 50% { opacity: .7; transform: translateX(-50%) translateY(6px); } }
+
+    .portfolio-section { padding: 80px 24px; max-width: 1200px; margin: 0 auto; }
+    .section-header { text-align: center; margin-bottom: 48px; }
+    .section-eyebrow { font-size: .75rem; letter-spacing: .15em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+    .section-title { font-family: 'Playfair Display', serif; font-size: clamp(1.5rem, 4vw, 2.5rem); font-weight: 400; }
+
+    .portfolio-grid { columns: 3; column-gap: 10px; }
+    @media (max-width: 768px) { .portfolio-grid { columns: 2; } }
+    @media (max-width: 480px) { .portfolio-grid { columns: 1; } }
+    .portfolio-item { break-inside: avoid; margin-bottom: 10px; border-radius: var(--radius); overflow: hidden; position: relative; cursor: pointer; background: var(--bg-2); }
+    .portfolio-item img { width: 100%; display: block; transition: transform .4s ease; }
+    .portfolio-item:hover img { transform: scale(1.03); }
+
+    .footer { text-align: center; padding: 40px 24px; color: var(--text-3); font-size: .78rem; border-top: 1px solid var(--border); }
+
+    .spinner { width: 18px; height: 18px; border: 2px solid rgba(12,12,12,.3); border-top-color: #0c0c0c; border-radius: 50%; animation: spin .6s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.93); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; }
+    .lightbox.open { opacity: 1; pointer-events: all; }
+    .lightbox img { max-width: 90vw; max-height: 88vh; object-fit: contain; border-radius: var(--radius); }
+    .lightbox-close { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15); color: #fff; border-radius: var(--radius); width: 40px; height: 40px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .lightbox-close:hover { background: rgba(255,255,255,.2); }
+    .empty-portfolio { text-align: center; color: var(--text-3); padding: 60px 0; font-size: .9rem; }
+  </style>
+  <link rel="icon" href="/favicon.ico">
+</head>
+<body>
+  <section class="hero">
+    <p class="hero-eyebrow">Fotografía</p>
+    <h1 class="hero-name">Carlos <em>Acosta</em></h1>
+    <p class="hero-sub">Capturo momentos que importan — conciertos, retratos, eventos. Cada imagen cuenta una historia.</p>
+    <div class="code-section">
+      <label for="codeInput">¿Tienes un código? Accede a tu galería</label>
+      <div class="code-input-wrap">
+        <input type="text" id="codeInput" class="code-input" placeholder="XXXXXX" maxlength="6" autocomplete="off" spellcheck="false">
+        <button class="code-btn" id="codeBtn">Ver fotos</button>
+      </div>
+      <p class="code-error" id="codeError"></p>
+    </div>
+    <div class="scroll-hint">
+      <span>Portafolio</span>
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+  </section>
+
+  <section class="portfolio-section">
+    <div class="section-header">
+      <p class="section-eyebrow">Trabajo reciente</p>
+      <h2 class="section-title">Portafolio</h2>
+    </div>
+    <div class="portfolio-grid" id="portfolioGrid">
+      <p class="empty-portfolio">Cargando...</p>
+    </div>
+  </section>
+
+  <footer class="footer">© 2026 Carlos Acosta · Fotografía</footer>
+
+  <div class="lightbox" id="lightbox">
+    <button class="lightbox-close" id="lightboxClose">✕</button>
+    <img id="lightboxImg" src="" alt="">
+  </div>
+
+  <script>
+    const API_BASE = 'https://api-fotos.carlangas.dpdns.org'
+
+    const codeInput = document.getElementById('codeInput')
+    const codeBtn = document.getElementById('codeBtn')
+    const codeError = document.getElementById('codeError')
+
+    codeInput.addEventListener('input', () => {
+      codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+      codeError.textContent = ''
+    })
+    codeInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleCode() })
+    codeBtn.addEventListener('click', handleCode)
+
+    async function handleCode() {
+      const code = codeInput.value.trim()
+      if (code.length < 6) { codeError.textContent = 'El código tiene 6 caracteres'; return }
+      codeBtn.disabled = true
+      codeBtn.innerHTML = '<div class="spinner"></div>'
+      codeError.textContent = ''
+      try {
+        const res = await fetch(`${API_BASE}/gallery/code/${code}`)
+        const data = await res.json()
+        if (!res.ok) { codeError.textContent = data.error || 'Código no válido'; return }
+        window.location.href = `/p/${data.slug}`
+      } catch { codeError.textContent = 'Error de conexión' }
+      finally { codeBtn.disabled = false; codeBtn.textContent = 'Ver fotos' }
+    }
+
+    async function loadPortfolio() {
+      const grid = document.getElementById('portfolioGrid')
+      try {
+        const res = await fetch(`${API_BASE}/portfolio`)
+        const data = await res.json()
+        if (!data.portfolio || data.portfolio.length === 0) {
+          grid.innerHTML = '<p class="empty-portfolio">Próximamente.</p>'; return
+        }
+        grid.innerHTML = data.portfolio.map((item, i) =>
+          `<div class="portfolio-item" data-url="${item.url}">
+            <img src="${item.url}" alt="Portafolio" loading="lazy" decoding="async">
+          </div>`
+        ).join('')
+        grid.querySelectorAll('.portfolio-item').forEach(el => {
+          el.addEventListener('click', () => openLightbox(el.dataset.url))
+        })
+      } catch { grid.innerHTML = '<p class="empty-portfolio">No se pudo cargar el portafolio.</p>' }
+    }
+
+    const lightbox = document.getElementById('lightbox')
+    const lightboxImg = document.getElementById('lightboxImg')
+    function openLightbox(url) { lightboxImg.src = url; lightbox.classList.add('open'); document.body.style.overflow = 'hidden' }
+    document.getElementById('lightboxClose').addEventListener('click', () => { lightbox.classList.remove('open'); document.body.style.overflow = '' })
+    lightbox.addEventListener('click', e => { if (e.target === lightbox) { lightbox.classList.remove('open'); document.body.style.overflow = '' } })
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { lightbox.classList.remove('open'); document.body.style.overflow = '' } })
+
+    loadPortfolio()
+  </script>
+</body>
+</html>

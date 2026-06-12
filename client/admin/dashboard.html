@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Entrega de Fotos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../shared.css">
+  <style>
+    .layout { display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* Navbar */
+    .navbar {
+      background: var(--bg-2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .navbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: .95rem;
+    }
+
+    .navbar-brand .dot {
+      width: 8px; height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+    }
+
+    .navbar-actions { display: flex; align-items: center; gap: 12px; }
+
+    /* Main content */
+    .main { flex: 1; padding: 40px 32px; max-width: 1100px; margin: 0 auto; width: 100%; }
+
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+
+    .page-header h1 { font-size: 1.5rem; }
+    .page-header p { color: var(--text-2); font-size: .875rem; margin-top: 4px; }
+
+    /* Grid de proyectos */
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+    }
+
+    .project-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      cursor: pointer;
+      transition: border-color .15s, transform .1s;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+
+    .project-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .project-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      gap: 12px;
+    }
+
+    .project-card-title { font-size: 1rem; font-weight: 600; }
+    .project-card-client { font-size: .8rem; color: var(--text-2); margin-top: 2px; }
+
+    .project-card-badges {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .project-card-meta {
+      display: flex;
+      gap: 16px;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    .meta-item { font-size: .8rem; color: var(--text-2); }
+    .meta-item strong { color: var(--text); display: block; font-size: .9rem; }
+
+    .project-card-link {
+      margin-top: 14px;
+      font-size: .78rem;
+      color: var(--text-3);
+      font-family: var(--font-mono);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Modal nuevo proyecto */
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  </style>
+  <link rel="icon" href="/favicon.ico">
+</head>
+<body>
+  <div class="layout">
+    <nav class="navbar">
+      <div class="navbar-brand">
+        <div class="dot"></div>
+        Entrega de Fotos
+      </div>
+      <div class="navbar-actions">
+        <button class="btn btn--ghost btn--sm" id="logoutBtn">Cerrar sesión</button>
+      </div>
+    </nav>
+
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Proyectos</h1>
+          <p id="projectCount">Cargando...</p>
+        </div>
+        <button class="btn btn--primary" id="newProjectBtn">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Nuevo proyecto
+        </button>
+      </div>
+
+      <div id="projectsGrid" class="projects-grid">
+        <div style="display:flex;align-items:center;gap:10px;color:var(--text-2);padding:40px 0">
+          <div class="spinner"></div> Cargando proyectos...
+        </div>
+      </div>
+    
+      <div style="margin-top:48px">
+        <div class="page-header" style="margin-bottom:16px">
+          <div>
+            <h2 style="font-size:1.1rem">Portafolio público</h2>
+            <p style="color:var(--text-2);font-size:.875rem;margin-top:4px">Imágenes en la página principal</p>
+          </div>
+          <label class="btn btn--ghost btn--sm" style="cursor:pointer">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Agregar foto
+            <input type="file" id="portfolioInput" accept="image/jpeg,image/png,image/webp" style="display:none" multiple>
+          </label>
+        </div>
+        <div id="portfolioGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">
+          <div style="color:var(--text-3);font-size:.85rem;padding:20px 0">Cargando...</div>
+        </div>
+      </div>
+</main>
+  </div>
+
+  <!-- Modal nuevo proyecto -->
+  <div class="modal-overlay" id="newProjectModal">
+    <div class="modal">
+      <h2>Nuevo proyecto</h2>
+      <form id="newProjectForm" style="display:flex;flex-direction:column;gap:14px;">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nombre del proyecto *</label>
+            <input type="text" class="input" id="pName" placeholder="Boda Cami & Carlos" required>
+          </div>
+          <div class="form-group">
+            <label>Nombre del cliente *</label>
+            <input type="text" class="input" id="pClient" placeholder="Isai Lehi" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Descripción</label>
+          <textarea class="input" id="pDesc" placeholder="Sesión fotográfica..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>PIN de acceso</label>
+          <input type="text" class="input" id="pPin" placeholder="PIN" maxlength="20">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn--ghost" id="cancelProjectBtn">Cancelar</button>
+          <button type="submit" class="btn btn--primary" id="createProjectBtn">Crear proyecto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../shared.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

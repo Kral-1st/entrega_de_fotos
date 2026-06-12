@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proyecto — Entrega de Fotos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../shared.css">
+  <style>
+    .layout { min-height: 100vh; }
+
+    /* Navbar */
+    .navbar {
+      background: var(--bg-2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .navbar-left { display: flex; align-items: center; gap: 16px; }
+    .navbar-brand { font-weight: 600; font-size: .95rem; display: flex; align-items: center; gap: 8px; }
+    .navbar-brand .dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; }
+    .breadcrumb { color: var(--text-3); font-size: .875rem; }
+    .breadcrumb a { color: var(--text-2); }
+    .breadcrumb a:hover { color: var(--text); }
+
+    /* Main */
+    .main { max-width: 1100px; margin: 0 auto; padding: 40px 32px; }
+
+    /* Proyecto header */
+    .project-header {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+      margin-bottom: 28px;
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .project-info h1 { font-size: 1.4rem; }
+    .project-info .client { color: var(--text-2); margin-top: 4px; font-size: .9rem; }
+    .project-info .desc { color: var(--text-3); margin-top: 8px; font-size: .85rem; max-width: 500px; }
+
+    .project-meta {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .meta-stat { text-align: center; }
+    .meta-stat .val { font-size: 1.4rem; font-weight: 600; color: var(--accent); display: block; }
+    .meta-stat .lbl { font-size: .75rem; color: var(--text-3); }
+
+    .project-link-box {
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .project-link-box label { font-size: .8rem; color: var(--text-2); text-transform: uppercase; letter-spacing: .05em; flex-shrink: 0; }
+    .project-link-box .link-url {
+      font-family: var(--font-mono);
+      font-size: .85rem;
+      color: var(--accent);
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Upload zone */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-lg);
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      margin-bottom: 28px;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(200,169,110,.04);
+    }
+    .upload-zone input[type=file] { display: none; }
+    .upload-zone p { color: var(--text-2); margin-top: 8px; font-size: .875rem; }
+    .upload-zone .hint { color: var(--text-3); font-size: .78rem; margin-top: 4px; }
+
+    /* Progress */
+    .upload-progress {
+      display: none;
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      margin-bottom: 28px;
+    }
+    .upload-progress.active { display: block; }
+    .progress-bar-wrap {
+      background: var(--bg-3);
+      border-radius: 4px;
+      height: 6px;
+      margin: 10px 0;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 4px;
+      transition: width .3s;
+      width: 0;
+    }
+    .progress-label { font-size: .8rem; color: var(--text-2); display: flex; justify-content: space-between; }
+
+    /* Sección fotos */
+    .photos-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .photos-header h2 { font-size: 1.1rem; }
+
+    /* Grid de fotos */
+    .photos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+    }
+
+    .photo-item {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--bg-3);
+      group: true;
+    }
+
+    .photo-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform .2s;
+    }
+
+    .photo-item:hover img { transform: scale(1.03); }
+
+    .photo-item-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      opacity: 0;
+      transition: opacity .15s;
+    }
+
+    .photo-item:hover .photo-item-overlay { opacity: 1; }
+
+    .photo-delete-btn {
+      background: var(--danger);
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background .15s;
+    }
+
+    .photo-delete-btn:hover { background: var(--danger-2); }
+
+    /* Modal editar */
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    /* Acciones proyecto */
+    .project-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .cover-badge {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: var(--accent);
+      color: #0f0f0f;
+      font-size: .65rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    .photo-cover-btn {
+      background: rgba(255,255,255,.1);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: var(--radius);
+      color: #fff;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .15s;
+    }
+
+    .photo-cover-btn:hover { background: rgba(255,255,255,.25); }
+    .photo-cover-btn.active { background: var(--accent); color: #0f0f0f; border-color: var(--accent); }
+    .photo-cover-btn.active svg { stroke: #0f0f0f; }
+
+    .processing-banner {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: #1a1a2e;
+      border: 1px solid #4a4a8a;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      color: #c8c8ff;
+    }
+    .processing-banner__spinner {
+      width: 20px;
+      height: 20px;
+      border: 3px solid #4a4a8a;
+      border-top-color: #8888ff;
+      border-radius: 50%;
+      flex-shrink: 0;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .processing-banner__text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 0.9rem;
+    }
+    .processing-banner__text strong { color: #e0e0ff; }
+    .processing-banner__text span { color: #8888aa; font-size: 0.82rem; }
+
+    .photo-item--pending { position: relative; background: #111; }
+    .photo-pending-overlay {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      aspect-ratio: 1;
+      color: #8888aa;
+    }
+    .photo-pending-icon { font-size: 1.4rem; }
+    .photo-pending-label { font-size: 0.75rem; }
+    .photo-pending-name {
+      font-size: 0.72rem;
+      color: #666;
+      padding: 4px 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  </style>
+  <link rel="icon" href="/favicon.ico">
+</head>
+<body>
+  <div class="layout">
+    <nav class="navbar">
+      <div class="navbar-left">
+        <div class="navbar-brand">
+          <div class="dot"></div>
+          Entrega de Fotos
+        </div>
+        <span class="breadcrumb">/ <a href="dashboard.html">Proyectos</a> / <span id="breadcrumbName">...</span></span>
+      </div>
+      <div class="project-actions">
+        <button class="btn btn--ghost btn--sm" id="editProjectBtn">Editar</button>
+        <button class="btn btn--danger btn--sm" id="deleteProjectBtn">Eliminar proyecto</button>
+      </div>
+    </nav>
+
+    <main class="main">
+      <!-- Header del proyecto -->
+      <div class="project-header" id="projectHeader">
+        <div class="project-info">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <h1 id="projectName">Cargando...</h1>
+            <span class="badge badge--active" id="statusBadge"></span>
+            <span class="badge badge--pin" id="pinBadge" style="display:none">🔒 Con PIN</span>
+          </div>
+          <p class="client" id="projectClient"></p>
+          <p style="margin-top:8px;font-size:.8rem;color:var(--text-2)">Código: <span id="projectCode" style="font-family:monospace;font-size:1rem;color:var(--accent);letter-spacing:.15em;font-weight:600"></span></p>
+          <p class="desc" id="projectDesc"></p>
+        </div>
+        <div class="project-meta">
+          <div class="meta-stat">
+            <span class="val" id="photoCountVal">—</span>
+            <span class="lbl">fotos</span>
+          </div>
+          <div class="meta-stat">
+            <span class="val" id="projectDate">—</span>
+            <span class="lbl">creado</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Link del cliente -->
+      <div class="project-link-box">
+        <label>Link del cliente</label>
+        <span class="link-url" id="clientLink">—</span>
+        <button class="btn btn--ghost btn--sm" id="copyLinkBtn">Copiar</button>
+        <a class="btn btn--ghost btn--sm" id="openLinkBtn" target="_blank">Abrir</a>
+      </div>
+
+      <!-- Upload zone -->
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" multiple accept="image/jpeg,image/png,image/webp,image/tiff,image/heic">
+        <svg width="36" height="36" fill="none" stroke="var(--text-3)" stroke-width="1.5" viewBox="0 0 24 24">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <p>Arrastra fotos aquí o <strong style="color:var(--accent)">haz clic para seleccionar</strong></p>
+        <p class="hint">JPG, PNG, WEBP, TIFF, HEIC — máx. 50MB por foto</p>
+      </div>
+
+      <!-- Progress -->
+      <div class="upload-progress" id="uploadProgress">
+        <div class="progress-label">
+          <span id="progressText">Subiendo fotos...</span>
+          <span id="progressPct">0%</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+      </div>
+
+      <!-- Fotos -->
+      <div class="photos-header">
+        <h2>Fotos <span id="photosCount" style="color:var(--text-3);font-weight:400;font-size:.9rem;"></span></h2>
+        <button class="btn btn--ghost btn--sm" id="downloadZipBtn" style="display:none">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Descargar todo
+        </button>
+      </div>
+
+      <div id="photosGrid" class="photos-grid"></div>
+    </main>
+  </div>
+
+  <!-- Modal editar proyecto -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <h2>Editar proyecto</h2>
+      <form id="editForm" style="display:flex;flex-direction:column;gap:14px;">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nombre *</label>
+            <input type="text" class="input" id="editName" required>
+          </div>
+          <div class="form-group">
+            <label>Cliente *</label>
+            <input type="text" class="input" id="editClient" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Descripción</label>
+          <textarea class="input" id="editDesc"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>PIN (dejar vacío para quitar)</label>
+            <input type="text" class="input" id="editPin">
+          </div>
+          <div class="form-group">
+            <label>Estado</label>
+            <select class="input" id="editActive">
+              <option value="1">Activo</option>
+              <option value="0">Inactivo</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn--ghost" id="cancelEditBtn">Cancelar</button>
+          <button type="submit" class="btn btn--primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../shared.js"></script>
+  <script src="js/project.js?v=4"></script>
+</body>
+</html>

@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fotos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/shared.css">
+  <style>
+    /* ── Welcome screen ── */
+    .welcome-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      transition: opacity .6s ease;
+    }
+
+    .welcome-screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .welcome-bg {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      background-color: #0c0c0c;
+      transition: opacity 1s ease;
+    }
+
+    .welcome-bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(0,0,0,.35) 0%, rgba(0,0,0,.55) 100%);
+    }
+
+    .welcome-content {
+      position: relative;
+      z-index: 1;
+      padding: 40px 24px;
+    }
+
+    .welcome-eyebrow {
+      font-size: .7rem;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.6);
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+
+    .welcome-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2rem, 8vw, 4.5rem);
+      font-weight: 400;
+      color: #fff;
+      line-height: 1.1;
+      letter-spacing: -.02em;
+      margin-bottom: 12px;
+      text-shadow: 0 2px 20px rgba(0,0,0,.4);
+    }
+
+    .welcome-meta {
+      font-size: .85rem;
+      color: rgba(255,255,255,.55);
+      margin-bottom: 40px;
+      letter-spacing: .05em;
+    }
+
+    .welcome-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255,255,255,.12);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,.25);
+      color: #fff;
+      font-size: .875rem;
+      font-weight: 500;
+      letter-spacing: .05em;
+      padding: 14px 32px;
+      border-radius: 40px;
+      cursor: pointer;
+      transition: background .2s, transform .15s;
+    }
+
+    .welcome-btn:hover {
+      background: rgba(255,255,255,.22);
+      transform: translateY(-1px);
+    }
+
+    .welcome-btn:active { transform: scale(.97); }
+
+    /* ── PIN screen ── */
+    .pin-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .pin-box {
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+    }
+
+    .pin-icon {
+      width: 56px; height: 56px;
+      background: rgba(200,169,110,.1);
+      border: 1px solid rgba(200,169,110,.2);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      font-size: 24px;
+    }
+
+    .pin-box h2 { font-size: 1.3rem; margin-bottom: 6px; }
+    .pin-box p { color: var(--text-2); font-size: .875rem; margin-bottom: 24px; }
+    .pin-form { display: flex; flex-direction: column; gap: 12px; }
+    .pin-error { color: var(--danger-2); font-size: .85rem; min-height: 20px; }
+
+    /* ── Gallery ── */
+    .gallery-page { display: none; }
+    .gallery-page.visible { display: block; }
+
+    .gallery-header {
+      padding: 40px 32px 32px;
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gallery-header-left {}
+    .gallery-eyebrow {
+      font-size: .75rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+    .gallery-title { font-size: 2rem; font-weight: 600; letter-spacing: -.02em; }
+    .gallery-meta { color: var(--text-2); margin-top: 6px; font-size: .875rem; }
+    .gallery-actions { display: flex; gap: 10px; flex-shrink: 0; }
+
+    .gallery-main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 28px 32px 60px;
+    }
+
+    .gallery-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .gallery-toolbar span { font-size: .875rem; color: var(--text-2); }
+
+    .photo-grid { columns: 4; column-gap: 8px; }
+    @media (max-width: 900px) { .photo-grid { columns: 3; } }
+    @media (max-width: 600px) { .photo-grid { columns: 2; } }
+
+    .photo-grid-item {
+      break-inside: avoid;
+      margin-bottom: 8px;
+      position: relative;
+      cursor: pointer;
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--bg-3);
+    }
+
+    .photo-grid-item img { width: 100%; display: block; transition: transform .3s; }
+    .photo-grid-item:hover img { transform: scale(1.03); }
+
+    .photo-grid-item-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(0,0,0,.6) 0%, transparent 50%);
+      opacity: 0;
+      transition: opacity .2s;
+      display: flex;
+      align-items: flex-end;
+      padding: 12px;
+    }
+
+    .photo-grid-item:hover .photo-grid-item-overlay { opacity: 1; }
+
+    .photo-grid-item-download {
+      background: rgba(255,255,255,.1);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: var(--radius);
+      color: #fff;
+      font-size: .78rem;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: background .15s;
+      text-decoration: none;
+    }
+
+    .photo-grid-item-download:hover { background: rgba(255,255,255,.2); color: #fff; }
+
+    /* ── Lightbox ── */
+    .lightbox {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.92);
+      z-index: 2000;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity .2s;
+    }
+    .lightbox.open { opacity: 1; pointer-events: all; }
+    .lightbox-img { max-width: 90vw; max-height: 88vh; object-fit: contain; border-radius: var(--radius); user-select: none; transition: opacity .2s; }
+    .lightbox-close {
+      position: absolute; top: 16px; right: 16px;
+      background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15);
+      color: #fff; border-radius: var(--radius);
+      width: 40px; height: 40px; font-size: 20px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: background .15s;
+    }
+    .lightbox-close:hover { background: rgba(255,255,255,.2); }
+    .lightbox-nav {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12);
+      color: #fff; border-radius: var(--radius);
+      width: 44px; height: 64px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s; font-size: 20px;
+    }
+    .lightbox-nav:hover { background: rgba(255,255,255,.18); }
+    .lightbox-nav--prev { left: 16px; }
+    .lightbox-nav--next { right: 16px; }
+    .lightbox-info {
+      position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .lightbox-counter {
+      background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.1);
+      color: rgba(255,255,255,.6); font-size: .78rem; padding: 4px 12px; border-radius: 20px;
+    }
+    .lightbox-download {
+      background: var(--accent); color: #0f0f0f; border-radius: var(--radius);
+      padding: 8px 16px; font-size: .8rem; font-weight: 500;
+      text-decoration: none; display: flex; align-items: center; gap: 6px; transition: background .15s;
+    }
+    .lightbox-download:hover { background: var(--accent-2); color: #0f0f0f; }
+
+    /* ── Footer ── */
+    .gallery-footer {
+      text-align: center; padding: 24px;
+      color: var(--text-3); font-size: .78rem;
+      border-top: 1px solid var(--border);
+    }
+
+    @media (max-width: 600px) {
+      .gallery-header { padding: 24px 16px 20px; }
+      .gallery-main { padding: 20px 16px 40px; }
+      .gallery-title { font-size: 1.5rem; }
+    }
+
+    .skeleton-wrap {
+      position: relative;
+    }
+
+
+    .skeleton-placeholder {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, var(--bg-3) 25%, #2a2a2a 50%, var(--bg-3) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: var(--radius);
+    }
+
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .like-btn {
+      background: rgba(255,255,255,.1);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: var(--radius);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 10px;
+      cursor: pointer;
+      transition: background .15s;
+      font-size: .78rem;
+    }
+
+    .like-btn:hover { background: rgba(255,255,255,.2); }
+    .like-btn.liked { color: #e74c3c; border-color: rgba(231,76,60,.4); background: rgba(231,76,60,.15); }
+    .like-btn.liked svg { stroke: #e74c3c; }
+    .like-count { font-size: .75rem; min-width: 8px; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <!-- Welcome screen -->
+  <div class="welcome-screen" id="welcomeScreen" style="display:none">
+    <div class="welcome-bg" id="welcomeBg"></div>
+    <div class="welcome-content">
+      <p class="welcome-eyebrow">Galería de fotos</p>
+      <h1 class="welcome-title" id="welcomeTitle">...</h1>
+      <p class="welcome-meta" id="welcomeMeta"></p>
+      <button class="welcome-btn" id="welcomeBtn">
+        Ver fotos
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- PIN screen -->
+  <div class="pin-screen" id="pinScreen" style="display:none">
+    <div class="pin-box">
+      <div class="pin-icon">🔒</div>
+      <h2>Acceso protegido</h2>
+      <p>Este álbum requiere un PIN para continuar.</p>
+      <form class="pin-form" id="pinForm">
+        <input type="text" class="input" id="pinInput" placeholder="PIN de acceso" maxlength="20" autofocus autocomplete="off">
+        <p class="pin-error" id="pinError"></p>
+        <button type="submit" class="btn btn--primary" id="pinBtn">Continuar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Gallery -->
+  <div class="gallery-page" id="galleryPage">
+    <header class="gallery-header">
+      <div class="gallery-header-left">
+        <div class="gallery-eyebrow">Galería de fotos</div>
+        <h1 class="gallery-title" id="galleryTitle">...</h1>
+        <p class="gallery-meta" id="galleryMeta"></p>
+      </div>
+      <div class="gallery-actions">
+        <button class="btn btn--primary" id="downloadAllBtn">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 0-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Descargar todo
+        </button>
+      </div>
+    </header>
+
+    <main class="gallery-main">
+      <div class="gallery-toolbar">
+        <span id="photoCountLabel"></span>
+      </div>
+      <div class="photo-grid" id="photoGrid"></div>
+    </main>
+
+    <footer class="gallery-footer" id="galleryFooter">
+      carlangas.dpdns.org
+    </footer>
+  </div>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox">
+    <button class="lightbox-close" id="lightboxClose" aria-label="Cerrar">✕</button>
+    <button class="lightbox-nav lightbox-nav--prev" id="lightboxPrev" aria-label="Anterior">‹</button>
+    <img class="lightbox-img" id="lightboxImg" src="" alt="">
+      <div id="lightboxSpinner" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;">
+        <div style="width:36px;height:36px;border:3px solid rgba(255,255,255,.15);border-top-color:rgba(255,255,255,.7);border-radius:50%;animation:spin .7s linear infinite;"></div>
+      </div>
+    <button class="lightbox-nav lightbox-nav--next" id="lightboxNext" aria-label="Siguiente">›</button>
+    <div class="lightbox-info">
+      <span class="lightbox-counter" id="lightboxCounter"></span>
+      <button class="like-btn" id="lightboxLikeBtn" data-id="">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+        </svg>
+        <span class="like-count"></span>
+      </button>
+      <a class="lightbox-download" id="lightboxDownload" href="#" download>
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Descargar
+      </a>
+    </div>
+  </div>
+
+  <script src="/shared.js"></script>
+  <script src="/gallery/js/gallery.js?v=11"></script>
+</body>
+</html>
