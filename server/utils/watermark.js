@@ -12,7 +12,13 @@ const MAX_RETRIES      = 2
 
 function applyWatermark(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
-    const proc = spawn(PYTHON_BIN, ['-u', WATERMARK_SCRIPT, inputPath, outputPath])
+    const proc = spawn(PYTHON_BIN, ['-u', WATERMARK_SCRIPT, inputPath, outputPath], {
+      env: {
+        ...process.env,
+        WM_FIRMA:     process.env.WM_FIRMA     || '',
+        WM_ALGORITMO: process.env.WM_ALGORITMO || 'dwtDctSvd',
+      }
+    })
     let stdout = ''
     let stderr = ''
 
