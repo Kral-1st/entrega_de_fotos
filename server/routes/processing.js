@@ -33,7 +33,6 @@ router.get('/status/:slug', adminAuth, (req, res) => {
 router.post('/:slug', adminAuth, async (req, res) => {
   const { slug } = req.params
   const db = getDb()
-
   const project = db.prepare('SELECT id FROM projects WHERE slug = ?').get(slug)
   if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' })
 
@@ -42,13 +41,47 @@ router.post('/:slug', adminAuth, async (req, res) => {
     }
 
     const pending = db.prepare(`
-    SELECT id, filename FROM photos
+    SELECT id FROM photos
     WHERE project_id = ? AND watermark_status = 'pending'
-    ORDER BY created_at ASC
     `).all(project.id)
 
     if (pending.length === 0) {
       return res.json({ started: false, count: 0, message: 'No hay fotos pendientes' })
+    }
+
+    res.json({ started: true, count: pending.length })
+    runBatch(slug, project.id)
+})
+
+async function runBatch(slug, projectId) {
+  const db = getDb()
+
+  // Limpiar PNGs corruptos y resetear 'processing' a 'pending'
+  db.prepare(`
+  UPDATE photos SET watermark_status = 'pending'
+  WHERE project_id = ? AND watermark_status = 'processing'
+  `).run(projectId)
+
+  const pending = db.prepare(`
+  SELECT id, filename FROM photos
+  WHERE project_id = ? AND watermark_status = 'pending'
+  ORDER BY created_at ASC
+  `).all(projectId)
+
+  if (pending.length === 0) return
+
+    const { getWatermarkedDir } = require('../utils/storage')
+    const fs   = require('fs')
+    const path = require('path')
+
+    // Borrar PNGs incompletos que pudieron quedar a medias
+    for (const photo of pending) {
+      const stem   = path.parse(photo.filename).name
+      const pngPath = path.join(getWatermarkedDir(slug), stem + '.png')
+      if (fs.existsSync(pngPath)) {
+        fs.unlinkSync(pngPath)
+        console.log(`[recovery] PNG corrupto eliminado: ${photo.filename}`)
+      }
     }
 
     const ids = pending.map(p => p.id)
@@ -58,17 +91,14 @@ router.post('/:slug', adminAuth, async (req, res) => {
     `).run(...ids)
 
     processingLock.set(slug, true)
-    res.json({ started: true, count: pending.length })
 
-    // ── Background: actualiza DB foto por foto ────────────────────────────────
     processBatch(slug, pending, (result) => {
       if (result.error) {
         db.prepare(`UPDATE photos SET watermark_status = 'error' WHERE id = ?`)
         .run(result.id)
       } else {
-        db.prepare(`
-        UPDATE photos SET watermark_status = 'done', watermarked_filename = ? WHERE id = ?
-        `).run(result.watermarkedFilename, result.id)
+        db.prepare(`UPDATE photos SET watermark_status = 'done', watermarked_filename = ? WHERE id = ?`)
+        .run(result.watermarkedFilename, result.id)
       }
     })
     .then(results => {
@@ -80,11 +110,31 @@ router.post('/:slug', adminAuth, async (req, res) => {
       db.prepare(`
       UPDATE photos SET watermark_status = 'error'
       WHERE project_id = ? AND watermark_status = 'processing'
-      `).run(project.id)
+      `).run(projectId)
     })
     .finally(() => {
       processingLock.delete(slug)
     })
-})
+}
 
-module.exports = router
+async function resumeInterruptedBatches() {
+  const db = getDb()
+  const proyectos = db.prepare(`
+  SELECT DISTINCT p.id, p.slug
+  FROM photos ph
+  JOIN projects p ON p.id = ph.project_id
+  WHERE ph.watermark_status IN ('pending', 'processing')
+  `).all()
+
+  if (proyectos.length === 0) {
+    console.log('[recovery] Sin batches interrumpidos')
+    return
+  }
+
+  for (const { id, slug } of proyectos) {
+    console.log(`[recovery] Reanudando batch interrumpido: ${slug}`)
+    await runBatch(slug, id)
+  }
+}
+
+module.exports = { router, resumeInterruptedBatches }

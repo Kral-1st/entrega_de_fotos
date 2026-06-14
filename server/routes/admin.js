@@ -34,18 +34,25 @@ router.use(adminAuth)
 const os = require('os')
 const upload = multer({
   storage: multer.diskStorage({
-    destination: (req, file, cb) => cb(null, os.tmpdir()),
-    filename: (req, file, cb) => cb(null, `upload_${Date.now()}_${Math.random().toString(36).slice(2)}`)
+    destination: (req, file, cb) => {
+      // Forzamos a que el archivo temporal se guarde en el mismo disco montado
+      cb(null, '/mnt/almacenamiento/server/entrega_de_fotos/uploads/tmp');
+    },
+    filename: (req, file, cb) => {
+      // Mantenemos tu lógica de nombres, pero aseguramos la extensión original si es necesario
+      const ext = path.extname(file.originalname);
+      cb(null, `upload_${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`);
+    }
   }),
   limits: { fileSize: config.upload.maxFileSize },
   fileFilter: (req, file, cb) => {
     if (config.upload.allowedMimes.includes(file.mimetype)) {
-      cb(null, true)
+      cb(null, true);
     } else {
-      cb(new Error(`Tipo de archivo no permitido: ${file.mimetype}`))
+      cb(new Error(`Tipo de archivo no permitido: ${file.mimetype}`));
     }
   }
-})
+});
 
 // ─── PROYECTOS ────────────────────────────────────────────────────────────────
 
@@ -196,15 +203,12 @@ router.post('/projects/:id/photos', upload.array('photos', 100), async (req, res
         const uniqueName = `${crypto.randomBytes(8).toString('hex')}${ext}`
         const originalPath = path.join(getOriginalsDir(project.slug), uniqueName)
 
-        // Guardar en originals/ rotando según EXIF, sin más procesamiento
-        await sharp(file.path)
-          .rotate()
-          .toFile(originalPath)
+        // Mover directamente sin recomprimir — preserva el original intacto
+        const fs = require('fs')
+        fs.renameSync(file.path, originalPath)
 
         // Obtener dimensiones
         const meta = await getImageMeta(originalPath)
-
-        fs.unlinkSync(file.path)
 
         // Insertar con watermark_status = 'pending' — sin thumb/preview aún
         const result = db.prepare(`

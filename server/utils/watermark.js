@@ -10,6 +10,8 @@ const PYTHON_BIN       = path.join(WATERMARK_DIR, 'venv/bin/python3')
 const WATERMARK_SCRIPT = path.join(WATERMARK_DIR, 'watermark.py')
 const MAX_RETRIES      = 2
 
+const CONCURRENCY = parseInt(process.env.WM_CONCURRENCY || '2', 10)
+
 function applyWatermark(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
     const proc = spawn(PYTHON_BIN, ['-u', WATERMARK_SCRIPT, inputPath, outputPath], {
@@ -46,7 +48,6 @@ function applyWatermark(inputPath, outputPath) {
       if (code === 0) {
         resolve({ ok: true, outputPath })
       } else if (code === 2) {
-        // Verificacion dudosa — el archivo existe pero la firma no se leyó bien
         resolve({ ok: false, outputPath, retryable: true })
       } else {
         reject(new Error(`watermark.py fallo (exit ${code}): ${stderr.trim()}`))
@@ -94,7 +95,6 @@ async function processPhoto({ slug, filename }) {
   while (attempts < MAX_RETRIES) {
     attempts++
 
-    // Si ya existe un PNG de intento anterior, borrarlo antes de reintentar
     if (attempts > 1 && fs.existsSync(watermarkedPath)) {
       fs.unlinkSync(watermarkedPath)
       console.log(`[watermark] Reintento ${attempts}/${MAX_RETRIES}: ${filename}`)
@@ -110,9 +110,8 @@ async function processPhoto({ slug, filename }) {
       }
   }
 
-  // Generar thumb y preview desde el watermarked (aunque la verificacion fuera dudosa)
-  await generateThumb(watermarkedPath,   path.join(thumbsDir,    stem + '.jpg'))
-  await generatePreview(watermarkedPath, path.join(previewsDir,  stem + '.jpg'))
+  await generateThumb(watermarkedPath,   path.join(thumbsDir,   stem + '.jpg'))
+  await generatePreview(watermarkedPath, path.join(previewsDir, stem + '.jpg'))
 
   console.log(`[watermark] Listo: ${filename} -> ${watermarkedName}${result.ok ? '' : ' (verificacion dudosa)'}`)
 
@@ -120,28 +119,59 @@ async function processPhoto({ slug, filename }) {
 }
 
 /**
- * Procesa un lote foto por foto.
+ * Procesa un lote en paralelo con concurrencia controlada.
+ * Lanza hasta CONCURRENCY fotos al mismo tiempo; cuando una termina
+ * entra la siguiente, manteniendo siempre el slot ocupado.
+ * onEach se llama en cuanto cada foto termina (orden de finalización,
+ * no de inicio), igual que antes para que el polling siga funcionando.
+ *
  * @param {string} slug
  * @param {Array<{id, filename}>} photos
  * @param {function} onEach — callback(result) llamado tras cada foto
  */
 async function processBatch(slug, photos, onEach) {
-  console.log(`[watermark] Iniciando batch: ${slug} (${photos.length} fotos)`)
-  const results = []
+  console.log(`[watermark] Iniciando batch: ${slug} (${photos.length} fotos, concurrencia: ${CONCURRENCY})`)
 
-  for (const photo of photos) {
-    let result
-    try {
-      const { watermarkedFilename } = await processPhoto({ slug, filename: photo.filename })
-      result = { id: photo.id, watermarkedFilename, error: null }
-    } catch (err) {
-      console.error(`[watermark] Error en ${photo.filename}:`, err.message)
-      result = { id: photo.id, watermarkedFilename: null, error: err.message }
+  const results = []
+  const queue   = [...photos]  // copia para no mutar el original
+  let active    = 0
+  let index     = 0
+
+  await new Promise((resolve, reject) => {
+    function next() {
+      // Mientras haya slots libres y fotos en la cola, lanzar
+      while (active < CONCURRENCY && index < queue.length) {
+        const photo = queue[index++]
+        active++
+
+        processPhoto({ slug, filename: photo.filename })
+        .then(({ watermarkedFilename }) => {
+          const result = { id: photo.id, watermarkedFilename, error: null }
+          results.push(result)
+          if (onEach) onEach(result)
+        })
+        .catch(err => {
+          console.error(`[watermark] Error en ${photo.filename}:`, err.message)
+          const result = { id: photo.id, watermarkedFilename: null, error: err.message }
+          results.push(result)
+          if (onEach) onEach(result)
+        })
+        .finally(() => {
+          active--
+          if (index < queue.length) {
+            next()  // hay más fotos, lanzar la siguiente
+          } else if (active === 0) {
+            resolve()  // cola vacía y nada activo: terminamos
+          }
+        })
+      }
     }
 
-    results.push(result)
-    if (onEach) onEach(result)
-  }
+    next()
+
+    // Edge case: lista vacía
+    if (photos.length === 0) resolve()
+  })
 
   const ok   = results.filter(r => !r.error).length
   const fail = results.length - ok

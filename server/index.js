@@ -8,7 +8,7 @@ const authRoutes = require('./routes/auth')
 const adminRoutes = require('./routes/admin')
 const galleryRoutes = require('./routes/gallery')
 const portfolioRoutes = require('./routes/portfolio')
-const processingRoutes = require('./routes/processing')
+const { router: processingRoutes, resumeInterruptedBatches } = require('./routes/processing')
 
 const app = express()
 app.set('trust proxy', 1)
@@ -85,6 +85,7 @@ async function start() {
       console.log(`   Frontend:     ${config.domains.frontend}`)
       console.log(`   Entorno:      ${config.nodeEnv}\n`)
     })
+    resumeInterruptedBatches()
   } catch (err) {
     console.error('Error iniciando servidor:', err)
     process.exit(1)
