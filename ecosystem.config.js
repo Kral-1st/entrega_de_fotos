@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'entrega-fotos-api',
       script: 'server/index.js',
-      cwd: '/mnt/almacenamiento/server/entrega_de_fotos',
+      cwd: process.env.CWD,
       instances: 1,
       autorestart: true,
       watch: false,
@@ -11,8 +11,8 @@ module.exports = {
       env: {
         NODE_ENV: 'production'
       },
-      error_file: '/mnt/almacenamiento/server/entrega_de_fotos/logs/error.log',
-      out_file: '/mnt/almacenamiento/server/entrega_de_fotos/logs/out.log',
+      error_file: process.env.ERROR_FILE,
+      out_file: process.env.OUT_FILE,
       log_date_format: 'YYYY-MM-DD HH:mm:ss'
     }
   ]
