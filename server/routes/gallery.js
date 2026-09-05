@@ -48,7 +48,15 @@ router.post('/:slug/unlock', (req, res) => {
       return res.status(401).json({ error: 'PIN incorrecto' })
     }
 
-    grantAccess(slug)
+    const token = grantAccess(slug)
+    res.cookie(`gallery_access_${slug}`, token, {
+      httpOnly: true,
+      secure: config.nodeEnv === 'production',
+      sameSite: 'lax',
+      domain: '.carlangas.dpdns.org',
+      path: `/gallery/${slug}`,
+      maxAge: 2 * 60 * 60 * 1000 // 2h, igual que ACCESS_TTL
+    })
     res.json({ success: true })
   } catch (err) {
     console.error(err)

@@ -10,17 +10,20 @@ const galleryRoutes = require('./routes/gallery')
 const portfolioRoutes = require('./routes/portfolio')
 const { router: processingRoutes, resumeInterruptedBatches } = require('./routes/processing')
 const workerRoutes = require('./routes/worker')
+const cookieParser = require('cookie-parser')
 
 const app = express()
 app.set('trust proxy', 1)
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 app.use(cors({
-  origin: [config.domains.frontend, 'http://100.91.125.114:8081', 'http://server:8081'],
+  origin: [config.domains.frontend, process.env.CORS1, process.env.CORS2],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }))
+
+app.use(cookieParser())
 
 // ─── BODY PARSING ─────────────────────────────────────────────────────────────
 app.use(express.json())

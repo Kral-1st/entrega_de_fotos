@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadGallery() {
   try {
-    const res = await fetch(`${API_BASE}/gallery/${slug}?session_id=${sessionId}`)
+    const res = await fetch(`${API_BASE}/gallery/${slug}?session_id=${sessionId}`, { credentials: 'include' })
     const data = await res.json()
 
     if (res.status === 401 && data.requiresPin) { showPinScreen(); return }
@@ -100,7 +100,8 @@ function showPinScreen() {
     try {
       const res = await fetch(`${API_BASE}/gallery/${slug}/unlock`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {'Content-Type':'application/json'},
+        credentials: 'include',
         body: JSON.stringify({ pin })
       })
       const data = await res.json()
@@ -185,6 +186,7 @@ async function toggleLike(photoId, btn) {
     const res = await fetch(`${API_BASE}/gallery/${slug}/likes/${photoId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ session_id: sessionId })
     })
     const data = await res.json()
