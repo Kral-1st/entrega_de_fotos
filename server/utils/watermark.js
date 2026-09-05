@@ -4,6 +4,7 @@ const path      = require('path')
 const fs        = require('fs')
 const storage   = require('./storage')
 const config    = require('../config')
+const watermarkQueue = require('./watermarkQueue')
 
 const WATERMARK_DIR    = path.join(__dirname, '../../watermark')
 const PYTHON_BIN       = path.join(WATERMARK_DIR, 'venv/bin/python3')
@@ -130,54 +131,44 @@ async function processPhoto({ slug, filename }) {
  * @param {function} onEach — callback(result) llamado tras cada foto
  */
 async function processBatch(slug, photos, onEach) {
-  console.log(`[watermark] Iniciando batch: ${slug} (${photos.length} fotos, concurrencia: ${CONCURRENCY})`)
+  console.log(`[watermark] Iniciando batch: ${slug} (${photos.length} fotos, concurrencia local: ${CONCURRENCY})`)
 
-  const results = []
-  const queue   = [...photos]  // copia para no mutar el original
-  let active    = 0
-  let index     = 0
+  if (photos.length === 0) return []
 
-  await new Promise((resolve, reject) => {
-    function next() {
-      // Mientras haya slots libres y fotos en la cola, lanzar
-      while (active < CONCURRENCY && index < queue.length) {
-        const photo = queue[index++]
-        active++
+    watermarkQueue.createBatch(slug, photos)
 
-        processPhoto({ slug, filename: photo.filename })
-        .then(({ watermarkedFilename }) => {
-          const result = { id: photo.id, watermarkedFilename, error: null }
-          results.push(result)
-          if (onEach) onEach(result)
-        })
-        .catch(err => {
-          console.error(`[watermark] Error en ${photo.filename}:`, err.message)
-          const result = { id: photo.id, watermarkedFilename: null, error: err.message }
-          results.push(result)
-          if (onEach) onEach(result)
-        })
-        .finally(() => {
-          active--
-          if (index < queue.length) {
-            next()  // hay más fotos, lanzar la siguiente
-          } else if (active === 0) {
-            resolve()  // cola vacía y nada activo: terminamos
-          }
-        })
+    const results = []
+    watermarkQueue.setOnEach(slug, (result) => {
+      results.push(result)
+      if (onEach) onEach(result)
+    })
+
+    const donePromise = watermarkQueue.whenDone(slug)
+
+    // Workers locales: cada uno jala de la cola compartida cuando tiene slot libre
+    await Promise.all(Array.from({ length: CONCURRENCY }, () => runLocalPuller()))
+    await donePromise // espera también a los workers remotos (TUF) que sigan trabajando
+
+    const ok   = results.filter(r => !r.error).length
+    const fail = results.length - ok
+    console.log(`[watermark] Batch terminado: ${slug} — ${ok} OK, ${fail} errores`)
+
+    return results
+}
+
+async function runLocalPuller() {
+  while (true) {
+    const job = watermarkQueue.getNextAny()
+    if (!job) return
+      const { batchId, id, filename } = job
+      try {
+        const { watermarkedFilename } = await processPhoto({ slug: batchId, filename })
+        watermarkQueue.reportDone(batchId, { id, watermarkedFilename, error: null })
+      } catch (err) {
+        console.error(`[watermark] Error en ${filename}:`, err.message)
+        watermarkQueue.reportDone(batchId, { id, watermarkedFilename: null, error: err.message })
       }
-    }
-
-    next()
-
-    // Edge case: lista vacía
-    if (photos.length === 0) resolve()
-  })
-
-  const ok   = results.filter(r => !r.error).length
-  const fail = results.length - ok
-  console.log(`[watermark] Batch terminado: ${slug} — ${ok} OK, ${fail} errores`)
-
-  return results
+  }
 }
 
 module.exports = { processBatch, processPhoto, applyWatermark }

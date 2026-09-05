@@ -9,6 +9,7 @@ const adminRoutes = require('./routes/admin')
 const galleryRoutes = require('./routes/gallery')
 const portfolioRoutes = require('./routes/portfolio')
 const { router: processingRoutes, resumeInterruptedBatches } = require('./routes/processing')
+const workerRoutes = require('./routes/worker')
 
 const app = express()
 app.set('trust proxy', 1)
@@ -56,6 +57,7 @@ app.get('/admin/thumb/:slug/:filename', (req, res, next) => {
 app.use('/auth', authRoutes)
 app.use('/admin', adminRoutes)
 app.use('/admin/process', processingRoutes)
+app.use('/internal/worker', workerRoutes)
 app.use('/gallery', galleryRoutes)
 app.use('/portfolio', portfolioRoutes)
 

@@ -3,7 +3,7 @@ const path = require('path')
 
 module.exports = {
   port: parseInt(process.env.PORT) || 3000,
-  nodeEnv: process.env.NODE_ENV || 'development',
+  nodeEnv: process.env.NODE_ENV,
 
   domains: {
     api: process.env.API_DOMAIN || 'http://localhost:3000',
@@ -11,12 +11,16 @@ module.exports = {
   },
 
   jwt: {
-    secret: process.env.JWT_SECRET || 'dev_secret_change_in_production',
+    secret: process.env.JWT_SECRET,
     expiresIn: process.env.JWT_EXPIRES_IN || '8h'
   },
 
   admin: {
-    password: process.env.ADMIN_PASSWORD || 'admin123'
+    password: process.env.ADMIN_PASSWORD
+  },
+
+  worker: {
+    secret: process.env.WM_WORKER_SECRET
   },
 
   paths: {
