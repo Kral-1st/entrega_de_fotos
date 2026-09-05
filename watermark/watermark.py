@@ -79,6 +79,39 @@ def verificar_firma(firmada, firma_bytes: bytes) -> tuple[bool, str, float]:
         print(f"[WARN] Excepción en verificación: {ex}", file=sys.stderr)
         return False, "", 0.0
 
+def pegar_firma_visible(img):
+    ruta_blanca = os.environ.get("WM_FIRMA_BLANCA", "")
+    ruta_negra  = os.environ.get("WM_FIRMA_NEGRA", "")
+    if not ruta_blanca or not ruta_negra:
+        return img  # sin overlay configurado
+
+    h, w = img.shape[:2]
+    ancho_firma = int(w * float(os.environ.get("WM_FIRMA_ANCHO_PCT", "0.18")))
+    margen = int(w * 0.03)
+
+    # región esquina inferior izquierda para medir brillo
+    region = img[h - ancho_firma - margen:h - margen, margen:margen + ancho_firma]
+    brillo = region.mean() if region.size else 128
+    ruta = ruta_negra if brillo > 128 else ruta_blanca
+
+    logo = cv2.imread(ruta, cv2.IMREAD_UNCHANGED)  # BGRA
+    if logo is None or logo.shape[2] != 4:
+        print(f"[WARN] Firma visible inválida o sin alpha: {ruta}", file=sys.stderr)
+        return img
+
+    escala = ancho_firma / logo.shape[1]
+    logo = cv2.resize(logo, (ancho_firma, int(logo.shape[0] * escala)))
+
+    lh, lw = logo.shape[:2]
+    y0 = h - lh - margen
+    x0 = margen
+    alpha = (logo[:, :, 3] / 255.0) * float(os.environ.get("WM_FIRMA_OPACIDAD", "0.5"))
+    alpha = alpha[..., None]
+
+    roi = img[y0:y0 + lh, x0:x0 + lw]
+    img[y0:y0 + lh, x0:x0 + lw] = (alpha * logo[:, :, :3] + (1 - alpha) * roi).astype("uint8")
+    return img
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -110,6 +143,8 @@ def main():
         sys.exit(1)
 
     # Aplicar watermark
+    img = pegar_firma_visible(img)
+
     firma_bytes = FIRMA.encode("utf-8")
     encoder = WatermarkEncoder()
     encoder.set_watermark("bytes", firma_bytes)

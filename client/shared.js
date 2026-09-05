@@ -1,6 +1,6 @@
 // Configuración central del frontend
 const API_BASE = window.location.hostname === 'server'
-? 'http://server:3556'
+? 'http://100.119.94.64:3556'
 : 'https://api-fotos.carlangas.dpdns.org'
 
 // ─── HTTP helpers ─────────────────────────────────────────────────────────────
