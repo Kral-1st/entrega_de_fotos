@@ -53,9 +53,8 @@ router.post('/:slug/unlock', (req, res) => {
       httpOnly: true,
       secure: config.nodeEnv === 'production',
       sameSite: 'lax',
-      domain: '.carlangas.dpdns.org',
-      path: `/gallery/${slug}`,
-      maxAge: 2 * 60 * 60 * 1000 // 2h, igual que ACCESS_TTL
+      path: `/api/gallery/${slug}`,
+      maxAge: 2 * 60 * 60 * 1000
     })
     res.json({ success: true })
   } catch (err) {
@@ -79,7 +78,7 @@ router.get('/:slug', projectAccess, (req, res) => {
       ORDER BY created_at ASC
     `).all(project.id)
 
-    const baseApi = config.domains.api
+    const baseApi = '/api'
 
     const likeCounts = db.prepare(`
       SELECT photo_id, COUNT(*) as c FROM likes
