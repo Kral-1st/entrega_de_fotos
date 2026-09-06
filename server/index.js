@@ -41,7 +41,14 @@ const globalLimiter = rateLimit({
   // dispara muchísimas peticiones por diseño. /admin se salta: ya está detrás
   // de JWT, y el polling de estado durante un batch largo puede acumular
   // cientos de requests sin ser abuso.
-  skip: (req) => req.path.startsWith('/internal/worker') || req.path.startsWith('/admin')
+  skip: (req) => {
+    if (req.path.startsWith('/internal/worker') || req.path.startsWith('/admin')) return true
+      // Servir thumb/preview/original escala con la cantidad de fotos del
+      // proyecto, no es un vector de abuso — /download y /unlock ya tienen
+      // sus propios límites, más estrictos, específicos para eso.
+      if (/^\/gallery\/[^/]+\/(thumb|preview|original)\//.test(req.path)) return true
+        return false
+  }
 })
 
 app.use(globalLimiter)
