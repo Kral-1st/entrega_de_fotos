@@ -6,6 +6,30 @@ const { projectAccess, grantAccess } = require('../middleware/projectAccess')
 const { getOriginalsDir, getWatermarkedDir, getThumbsDir, getPreviewsDir } = require('../utils/storage')
 const { streamProjectZip } = require('../utils/zip')
 const config = require('../config')
+const crypto = require('crypto')
+const rateLimit = require('express-rate-limit')
+
+const unlockLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 10,
+  message: { error: 'Demasiados intentos. Espera 15 minutos.' }
+})
+
+const downloadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Demasiadas descargas. Espera unos minutos.' }
+})
+
+function pinMatches(stored, provided) {
+  const storedBuf = Buffer.from(String(stored))
+  const providedBuf = Buffer.from(String(provided || ''))
+  if (storedBuf.length !== providedBuf.length) {
+    crypto.timingSafeEqual(storedBuf, storedBuf) // gasta el mismo tiempo, no filtra el largo
+    return false
+  }
+  return crypto.timingSafeEqual(storedBuf, providedBuf)
+}
 
 const router = express.Router()
 
@@ -27,7 +51,7 @@ router.get('/code/:code', (req, res) => {
 })
 
 // POST /gallery/:slug/unlock — verificar PIN
-router.post('/:slug/unlock', (req, res) => {
+router.post('/:slug/unlock', unlockLimiter, (req, res) => {
   try {
     const { slug } = req.params
     const { pin } = req.body
@@ -44,7 +68,7 @@ router.post('/:slug/unlock', (req, res) => {
       return res.json({ success: true, message: 'Sin PIN requerido' })
     }
 
-    if (project.pin !== pin) {
+    if (!pinMatches(project.pin, pin)) {
       return res.status(401).json({ error: 'PIN incorrecto' })
     }
 
@@ -191,7 +215,7 @@ router.get('/:slug/preview/:filename', projectAccess, (req, res) => {
 })
 
 // GET /gallery/:slug/download — ZIP desde watermarked/
-router.get('/:slug/download', projectAccess, (req, res) => {
+router.get('/:slug/download', downloadLimiter, projectAccess, (req, res) => {
   try {
     const db = getDb()
     const { project } = req

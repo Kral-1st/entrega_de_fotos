@@ -11,6 +11,7 @@ const portfolioRoutes = require('./routes/portfolio')
 const { router: processingRoutes, resumeInterruptedBatches } = require('./routes/processing')
 const workerRoutes = require('./routes/worker')
 const cookieParser = require('cookie-parser')
+const rateLimit = require('express-rate-limit')
 
 const app = express()
 app.set('trust proxy', 1)
@@ -28,6 +29,22 @@ app.use(cookieParser())
 // ─── BODY PARSING ─────────────────────────────────────────────────────────────
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+
+// ─── RATE LIMIT GLOBAL ─────────────────────────────────────────────────────────
+const globalLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutos
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas solicitudes, intenta de nuevo en unos minutos.' },
+  // /internal/worker se salta: el polling legítimo de los workers de watermark
+  // dispara muchísimas peticiones por diseño. /admin se salta: ya está detrás
+  // de JWT, y el polling de estado durante un batch largo puede acumular
+  // cientos de requests sin ser abuso.
+  skip: (req) => req.path.startsWith('/internal/worker') || req.path.startsWith('/admin')
+})
+
+app.use(globalLimiter)
 
 // ─── LOGGING BÁSICO ───────────────────────────────────────────────────────────
 app.use((req, res, next) => {
