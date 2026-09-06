@@ -1,102 +1,214 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Carlos Acosta — Fotografía</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg: #0c0c0c; --bg-2: #141414; --border: #222;
-      --text: #e8e8e8; --text-2: #888; --text-3: #444;
-      --accent: #c8a96e; --radius: 6px;
-    }
-    html { font-size: 16px; scroll-behavior: smooth; }
-    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carlos Acosta — Fotografía de conciertos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #060606;
+    --bg-panel: #0d0d0d;
+    --line: #242424;
+    --text: #f4f3f0;
+    --text-dim: #8d8b87;
+    --text-faint: #4a4846;
+    --accent: #ff2f6e;
+    --accent-2: #00c2ff;
+    --radius: 4px;
+  }
+  html { font-size: 16px; scroll-behavior: smooth; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  .display { font-family: 'Bebas Neue', sans-serif; letter-spacing: .01em; }
 
-    .hero {
-      min-height: 100vh; display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      padding: 60px 24px; text-align: center; position: relative;
-    }
-    .hero-eyebrow { font-size: .75rem; letter-spacing: .2em; text-transform: uppercase; color: var(--accent); margin-bottom: 20px; font-weight: 500; }
-    .hero-name { font-family: 'Playfair Display', serif; font-size: clamp(2.5rem, 8vw, 5rem); font-weight: 400; line-height: 1.1; letter-spacing: -.02em; margin-bottom: 16px; }
-    .hero-name em { font-style: italic; color: var(--accent); }
-    .hero-sub { font-size: clamp(.875rem, 2vw, 1rem); color: var(--text-2); max-width: 420px; line-height: 1.7; margin-bottom: 56px; }
+  /* ─── HERO ──────────────────────────────────────────────────────────── */
+  .hero {
+    position: relative; min-height: 100svh; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    padding: 100px 28px 64px;
+  }
+  .hero-bg {
+    position: absolute; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 15% 0%, rgba(255,47,110,.22), transparent 60%),
+      radial-gradient(ellipse 70% 55% at 100% 10%, rgba(0,194,255,.16), transparent 60%),
+      linear-gradient(180deg, #050505 0%, #050505 55%, #000 100%);
+    transition: background .6s ease;
+  }
+  .hero-bg.has-photo { background-blend-mode: normal; }
+  .hero-bg img {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    opacity: 0; filter: grayscale(.55) brightness(.42) contrast(1.15);
+    transition: opacity 1s ease;
+  }
+  .hero-bg img.loaded { opacity: 1; }
+  .hero-bg::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(6,6,6,.35) 0%, rgba(6,6,6,.55) 55%, #060606 100%);
+  }
+  .hero-grain {
+    position: absolute; inset: 0; z-index: 1; opacity: .35; mix-blend-mode: overlay; pointer-events: none;
+  }
 
-    .code-section { background: var(--bg-2); border: 1px solid var(--border); border-radius: 16px; padding: 28px 32px; width: 100%; max-width: 380px; }
-    .code-section label { display: block; font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; color: var(--text-2); margin-bottom: 12px; font-weight: 500; }
-    .code-input-wrap { display: flex; gap: 10px; }
-    .code-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 1.1rem; font-family: monospace; letter-spacing: .15em; padding: 12px 16px; text-transform: uppercase; outline: none; transition: border-color .15s; }
-    .code-input:focus { border-color: var(--accent); }
-    .code-input::placeholder { letter-spacing: .05em; color: var(--text-3); font-size: .9rem; }
-    .code-btn { background: var(--accent); color: #0c0c0c; border: none; border-radius: var(--radius); padding: 12px 20px; font-size: .875rem; font-weight: 600; cursor: pointer; transition: background .15s, transform .1s; white-space: nowrap; }
-    .code-btn:hover { background: #b8993e; }
-    .code-btn:active { transform: scale(.97); }
-    .code-btn:disabled { opacity: .5; cursor: not-allowed; }
-    .code-error { font-size: .8rem; color: #e74c3c; margin-top: 10px; min-height: 18px; }
+  .hero-content { position: relative; z-index: 2; max-width: 620px; }
+  .hero-kicker { font-size: .95rem; color: var(--text-dim); margin-bottom: 10px; }
+  .hero-title {
+    font-size: clamp(3.6rem, 13vw, 7.5rem); line-height: .88;
+    text-transform: uppercase; margin-bottom: 22px;
+  }
+  .hero-line {
+    font-size: clamp(.95rem, 2vw, 1.05rem); color: var(--text-dim);
+    max-width: 46ch; line-height: 1.65; margin-bottom: 40px;
+  }
 
-    .scroll-hint { position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); color: var(--text-3); font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; display: flex; flex-direction: column; align-items: center; gap: 8px; animation: fadeUpDown 2s ease-in-out infinite; }
-    @keyframes fadeUpDown { 0%, 100% { opacity: .3; transform: translateX(-50%) translateY(0); } 50% { opacity: .7; transform: translateX(-50%) translateY(6px); } }
+  .code-box {
+    background: rgba(255,255,255,.03); border: 1px solid var(--line);
+    border-radius: 10px; padding: 22px 24px; max-width: 400px; backdrop-filter: blur(6px);
+  }
+  .code-box p { font-size: .85rem; color: var(--text-dim); margin-bottom: 12px; }
+  .code-row { display: flex; gap: 10px; }
+  .code-input {
+    flex: 1; background: #000; border: 1px solid var(--line); border-radius: var(--radius);
+    color: var(--text); font-size: 1.05rem; font-family: 'Inter', monospace; letter-spacing: .12em;
+    padding: 12px 14px; text-transform: uppercase; outline: none; transition: border-color .15s;
+  }
+  .code-input:focus { border-color: var(--accent); }
+  .code-input::placeholder { color: var(--text-faint); letter-spacing: .04em; }
+  .code-btn {
+    background: var(--accent); color: #0a0a0a; border: none; border-radius: var(--radius);
+    padding: 12px 20px; font-size: .875rem; font-weight: 600; cursor: pointer;
+    white-space: nowrap; transition: background .15s, transform .1s;
+  }
+  .code-btn:hover { background: #ff4d80; }
+  .code-btn:active { transform: scale(.97); }
+  .code-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .code-error { font-size: .8rem; color: var(--accent); margin-top: 10px; min-height: 16px; }
 
-    .portfolio-section { padding: 80px 24px; max-width: 1200px; margin: 0 auto; }
-    .section-header { text-align: center; margin-bottom: 48px; }
-    .section-eyebrow { font-size: .75rem; letter-spacing: .15em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
-    .section-title { font-family: 'Playfair Display', serif; font-size: clamp(1.5rem, 4vw, 2.5rem); font-weight: 400; }
+  .scroll-hint {
+    position: absolute; bottom: 26px; right: 28px; z-index: 2;
+    color: var(--text-faint); font-size: .78rem; display: flex; align-items: center; gap: 8px;
+    animation: driftDown 2.2s ease-in-out infinite;
+  }
+  @keyframes driftDown { 0%,100% { opacity: .4; transform: translateY(0); } 50% { opacity: .9; transform: translateY(5px); } }
 
-    .portfolio-grid { columns: 3; column-gap: 10px; }
-    @media (max-width: 768px) { .portfolio-grid { columns: 2; } }
-    @media (max-width: 480px) { .portfolio-grid { columns: 1; } }
-    .portfolio-item { break-inside: avoid; margin-bottom: 10px; border-radius: var(--radius); overflow: hidden; position: relative; cursor: pointer; background: var(--bg-2); }
-    .portfolio-item img { width: 100%; display: block; transition: transform .4s ease; }
-    .portfolio-item:hover img { transform: scale(1.03); }
+  /* ─── PORTAFOLIO ────────────────────────────────────────────────────── */
+  .section { padding: 90px 28px; max-width: 1240px; margin: 0 auto; }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; margin-bottom: 36px; border-bottom: 1px solid var(--line); padding-bottom: 20px; }
+  .section-title { font-size: clamp(2rem, 5vw, 3rem); text-transform: uppercase; }
+  .section-count { font-size: .85rem; color: var(--text-faint); white-space: nowrap; }
 
-    .footer { text-align: center; padding: 40px 24px; color: var(--text-3); font-size: .78rem; border-top: 1px solid var(--border); }
+  .portfolio-grid { columns: 3; column-gap: 8px; }
+  @media (max-width: 860px) { .portfolio-grid { columns: 2; } }
+  @media (max-width: 520px) { .portfolio-grid { columns: 1; } }
+  .portfolio-item { break-inside: avoid; margin-bottom: 8px; overflow: hidden; position: relative; cursor: pointer; background: var(--bg-panel); }
+  .portfolio-item img { width: 100%; display: block; filter: grayscale(.15); transition: transform .5s ease, filter .3s ease; }
+  .portfolio-item:hover img { transform: scale(1.035); filter: grayscale(0); }
+  .empty-portfolio { color: var(--text-faint); font-size: .9rem; padding: 20px 0; }
 
-    .spinner { width: 18px; height: 18px; border: 2px solid rgba(12,12,12,.3); border-top-color: #0c0c0c; border-radius: 50%; animation: spin .6s linear infinite; display: inline-block; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+  /* ─── SOBRE MÍ ──────────────────────────────────────────────────────── */
+  .about { border-top: 1px solid var(--line); }
+  .about-inner { max-width: 640px; }
+  .about p { font-size: clamp(1.1rem, 2.5vw, 1.4rem); line-height: 1.6; color: var(--text); font-weight: 300; }
+  .about p + p { margin-top: 20px; color: var(--text-dim); font-size: clamp(.95rem, 1.8vw, 1.05rem); }
 
-    .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.93); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; }
-    .lightbox.open { opacity: 1; pointer-events: all; }
-    .lightbox img { max-width: 90vw; max-height: 88vh; object-fit: contain; border-radius: var(--radius); }
-    .lightbox-close { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15); color: #fff; border-radius: var(--radius); width: 40px; height: 40px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-    .lightbox-close:hover { background: rgba(255,255,255,.2); }
-    .empty-portfolio { text-align: center; color: var(--text-3); padding: 60px 0; font-size: .9rem; }
-  </style>
-  <link rel="icon" href="/favicon.ico">
+  /* ─── CTA ───────────────────────────────────────────────────────────── */
+  .cta { border-top: 1px solid var(--line); text-align: left; }
+  .cta-title { font-size: clamp(2.2rem, 6vw, 4rem); text-transform: uppercase; line-height: .95; margin-bottom: 24px; max-width: 14ch; }
+  .cta-link {
+    display: inline-flex; align-items: center; gap: 10px; background: var(--accent); color: #0a0a0a;
+    text-decoration: none; font-weight: 600; font-size: .95rem; padding: 15px 26px; border-radius: var(--radius);
+    transition: background .15s;
+  }
+  .cta-link:hover { background: #ff4d80; }
+
+  /* ─── FOOTER ────────────────────────────────────────────────────────── */
+  .footer {
+    padding: 28px; border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+    color: var(--text-faint); font-size: .8rem; max-width: 1240px; margin: 0 auto;
+  }
+  .footer a { color: var(--text-dim); text-decoration: none; }
+  .footer a:hover { color: var(--text); }
+
+  .spinner { width: 16px; height: 16px; border: 2px solid rgba(10,10,10,.3); border-top-color: #0a0a0a; border-radius: 50%; animation: spin .6s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.95); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .lightbox.open { opacity: 1; pointer-events: all; }
+  .lightbox img { max-width: 92vw; max-height: 88vh; object-fit: contain; }
+  .lightbox-close { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,.06); border: 1px solid var(--line); color: #fff; border-radius: var(--radius); width: 40px; height: 40px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .lightbox-close:hover { background: rgba(255,255,255,.14); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scroll-hint, .hero-bg img { animation: none !important; transition: none !important; }
+  }
+</style>
+<link rel="icon" href="/favicon.ico">
 </head>
 <body>
-  <section class="hero">
-    <p class="hero-eyebrow">Fotografía</p>
-    <h1 class="hero-name">Carlos <em>Acosta</em></h1>
-    <p class="hero-sub">Capturo momentos que importan — conciertos, retratos, eventos. Cada imagen cuenta una historia.</p>
-    <div class="code-section">
-      <label for="codeInput">¿Tienes un código? Accede a tu galería</label>
-      <div class="code-input-wrap">
-        <input type="text" id="codeInput" class="code-input" placeholder="XXXXXX" maxlength="6" autocomplete="off" spellcheck="false">
-        <button class="code-btn" id="codeBtn">Ver fotos</button>
-      </div>
-      <p class="code-error" id="codeError"></p>
+
+  <section class="hero" id="hero">
+    <div class="hero-bg" id="heroBg">
+      <img id="heroPhoto" alt="">
     </div>
+    <svg class="hero-grain" width="100%" height="100%">
+      <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/></filter>
+      <rect width="100%" height="100%" filter="url(#grain)"/>
+    </svg>
+
+    <div class="hero-content">
+      <p class="hero-kicker">Fotografía de conciertos</p>
+      <h1 class="hero-title display">Carlos<br>Acosta</h1>
+      <p class="hero-line">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+
+      <div class="code-box">
+        <p>¿Tienes un código de acceso a tu galería?</p>
+        <div class="code-row">
+          <input type="text" id="codeInput" class="code-input" placeholder="XXXXXX" maxlength="6" autocomplete="off" spellcheck="false">
+          <button class="code-btn" id="codeBtn">Ver fotos</button>
+        </div>
+        <p class="code-error" id="codeError"></p>
+      </div>
+    </div>
+
     <div class="scroll-hint">
-      <span>Portafolio</span>
-      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      Portafolio
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
   </section>
 
-  <section class="portfolio-section">
-    <div class="section-header">
-      <p class="section-eyebrow">Trabajo reciente</p>
-      <h2 class="section-title">Portafolio</h2>
+  <section class="section">
+    <div class="section-head">
+      <h2 class="section-title display">Trabajo</h2>
+      <span class="section-count" id="portfolioCount"></span>
     </div>
     <div class="portfolio-grid" id="portfolioGrid">
       <p class="empty-portfolio">Cargando...</p>
     </div>
   </section>
 
-  <footer class="footer">© 2026 Carlos Acosta · Fotografía</footer>
+  <section class="section about">
+    <div class="about-inner">
+      <p>Lorem Ipsum.</p>
+      <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+    </div>
+  </section>
+
+  <section class="section cta">
+    <h2 class="cta-title display">¿Tocas pronto?</h2>
+    <a class="cta-link" href="https://wa.me/5210000000000" target="_blank" rel="noopener">Escríbeme por WhatsApp</a>
+  </section>
+
+  <footer class="footer">
+    <span>© 2026 Carlos Acosta</span>
+    <a href="https://www.instagram.com/carlangas0723_/" target="_blank" rel="noopener">Instagram</a>
+  </footer>
 
   <div class="lightbox" id="lightbox">
     <button class="lightbox-close" id="lightboxClose">✕</button>
@@ -104,7 +216,7 @@
   </div>
 
   <script>
-    const API_BASE = 'https://api-fotos.carlangas.dpdns.org'
+    const API_BASE = '/api'
 
     const codeInput = document.getElementById('codeInput')
     const codeBtn = document.getElementById('codeBtn')
@@ -134,21 +246,31 @@
 
     async function loadPortfolio() {
       const grid = document.getElementById('portfolioGrid')
+      const countEl = document.getElementById('portfolioCount')
       try {
         const res = await fetch(`${API_BASE}/portfolio`)
         const data = await res.json()
         if (!data.portfolio || data.portfolio.length === 0) {
-          grid.innerHTML = '<p class="empty-portfolio">Próximamente.</p>'; return
+          grid.innerHTML = '<p class="empty-portfolio">Próximamente.</p>'
+          return
         }
-        grid.innerHTML = data.portfolio.map((item, i) =>
+        countEl.textContent = `${data.portfolio.length} fotos`
+        grid.innerHTML = data.portfolio.map(item =>
           `<div class="portfolio-item" data-url="${item.url}">
-            <img src="${item.url}" alt="Portafolio" loading="lazy" decoding="async">
+            <img src="${item.url}" alt="Foto de concierto" loading="lazy" decoding="async">
           </div>`
         ).join('')
         grid.querySelectorAll('.portfolio-item').forEach(el => {
           el.addEventListener('click', () => openLightbox(el.dataset.url))
         })
-      } catch { grid.innerHTML = '<p class="empty-portfolio">No se pudo cargar el portafolio.</p>' }
+
+        // Usa la primera foto del portafolio como fondo del hero, atenuada
+        const heroPhoto = document.getElementById('heroPhoto')
+        heroPhoto.src = data.portfolio[0].url
+        heroPhoto.onload = () => heroPhoto.classList.add('loaded')
+      } catch {
+        grid.innerHTML = '<p class="empty-portfolio">No se pudo cargar el portafolio.</p>'
+      }
     }
 
     const lightbox = document.getElementById('lightbox')
