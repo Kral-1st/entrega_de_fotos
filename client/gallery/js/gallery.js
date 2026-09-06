@@ -82,12 +82,16 @@ function preloadThumbs() {
 }
 
 // ─── PIN ──────────────────────────────────────────────────────────────────────
+let pinListenerAttached = false
+
 function showPinScreen() {
   document.getElementById('pinScreen').style.display = 'flex'
   document.getElementById('pinInput').focus()
 
-  document.getElementById('pinForm').addEventListener('submit', async (e) => {
-    e.preventDefault()
+  if (pinListenerAttached) return
+    pinListenerAttached = true
+
+    document.getElementById('pinForm').addEventListener('submit', async (e) => {    e.preventDefault()
     const pin = document.getElementById('pinInput').value.trim()
     const errorEl = document.getElementById('pinError')
     const btn = document.getElementById('pinBtn')

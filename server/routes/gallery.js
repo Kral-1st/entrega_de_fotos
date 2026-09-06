@@ -157,7 +157,8 @@ router.get('/:slug', projectAccess, (req, res) => {
 // GET /gallery/:slug/thumb/:filename — servir thumbnail
 router.get('/:slug/thumb/:filename', projectAccess, (req, res) => {
   const { slug, filename } = req.params
-  const thumbPath = path.join(getThumbsDir(slug), filename)
+  const safeName = path.basename(filename)
+  const thumbPath = path.join(getThumbsDir(slug), safeName)
 
   if (!fs.existsSync(thumbPath)) {
     return res.status(404).json({ error: 'Imagen no encontrada' })
@@ -200,11 +201,12 @@ router.get('/:slug/original/:filename', projectAccess, (req, res) => {
 // GET /gallery/:slug/preview/:filename — servir preview
 router.get('/:slug/preview/:filename', projectAccess, (req, res) => {
   const { slug, filename } = req.params
-  const previewPath = path.join(getPreviewsDir(slug), filename)
+  const safeName = path.basename(filename)
+  const previewPath = path.join(getPreviewsDir(slug), safeName)
 
   if (!fs.existsSync(previewPath)) {
     // Fallback al original si no existe preview (no debería pasar en fotos nuevas)
-    const originalPath = path.join(getOriginalsDir(slug), filename)
+    const originalPath = path.join(getOriginalsDir(slug), safeName)
     if (!fs.existsSync(originalPath)) return res.status(404).json({ error: 'Imagen no encontrada' })
     res.setHeader('Cache-Control', 'public, max-age=86400')
     return res.sendFile(originalPath)
