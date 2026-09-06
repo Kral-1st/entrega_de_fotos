@@ -35,7 +35,7 @@ Repo: `Kral-1st/entrega_de_fotos`
            │ mismo origen (nginx)             │ Bearer JWT
            ▼                                  ▼
    ┌───────────────────────────────────────────────────┐
-   │  nginx                                              │
+   │  nginx  (fotos.example.org)                │
    │   - sirve /admin, /gallery, /p/:slug (estáticos)    │
    │   - location ^~ /api/  →  proxy_pass 127.0.0.1:3555 │
    └───────────────────────┬────────────────────────────┘
@@ -51,12 +51,13 @@ Repo: `Kral-1st/entrega_de_fotos`
                                                     │
                                     ┌───────────────┼────────────────┐
                                     ▼                                ▼
-                         Workers locales (SERVER)          worker-client.js (EXTERNO)
+                         Workers locales (SERVER)          worker-client.js (TUF)
                          watermark.py (venv local)          watermark.py (venv propio)
                                     │                                │
                                     └──────── mismo storage NFS ─────┘
 ```
 
+El acceso externo pasa por **Cloudflare Tunnel** (hostnames bajo `example.org`, dominio dinámico administrado por Cloudflare). El acceso interno puede hacerse directo por **Netbird** (mesh VPN), resolviendo el mismo hostname a la IP LAN del server vía Local DNS — por eso la API se expone bajo el mismo origen que el frontend (`/api/...`) en vez de un subdominio aparte: evita problemas de cookies/CORS cross-subdominio específicos de cómo Cloudflare maneja hostnames de `dpdns.org`.
 
 ---
 
@@ -199,15 +200,13 @@ Variables adicionales usadas por **workers remotos** (no están en `example.env`
 
 ## Base de datos
 
-SQLite vía `better-sqlite3`, modo WAL. `schema.sql` define lo base:
+SQLite vía `better-sqlite3`, modo WAL. Todo vive en un único `schema.sql` (idempotente, `CREATE TABLE/INDEX IF NOT EXISTS`, se corre en cada arranque):
 
 - **`admin`** — una sola fila, `password_hash` (bcrypt).
-- **`projects`** — `slug` único, `pin` opcional, `is_active`.
-- **`photos`** — `project_id` (FK cascade), `filename`, `original_name`, dimensiones.
-
-`migration_watermark.sql` agrega `watermark_status` (`pending`/`processing`/`done`/`error`) y `watermarked_filename`.
-
-> ⚠️ **Nota:** el código en producción también usa columnas/tablas que no están en `schema.sql` ni en `migration_watermark.sql` — `projects.code`, `projects.cover_photo_id`, y una tabla `likes` (`photo_id`, `session_id`) completa, además de una tabla `portfolio` (`filename`, `sort_order`) para la home pública. Estas se agregaron en algún momento directo contra la DB en producción y **no quedaron documentadas en ningún `.sql` del repo**. Si se necesita levantar la DB desde cero, hay que reconstruir esas migraciones a mano — ver [Pendientes](#cosas-pendientes--deuda-técnica-conocida).
+- **`projects`** — `slug` único, `pin` opcional, `is_active`, `code` (código corto de 6 caracteres para acceso alterno sin slug), `cover_photo_id` (FK a `photos`, foto de portada de la galería).
+- **`photos`** — `project_id` (FK cascade), `filename`/`original_name`, dimensiones, `watermark_status` (`pending`/`processing`/`done`/`error`), `watermarked_filename`.
+- **`portfolio`** — fotos del carrusel de la home pública (`filename`, `sort_order`).
+- **`likes`** — likes de clientes en la galería, por `session_id` (sin cuenta), único por `(photo_id, session_id)`.
 
 ---
 
@@ -314,15 +313,20 @@ Cosas ya resueltas que vale la pena que quien lea esto sepa que **no** son accid
 - `config.js` no tiene fallbacks inseguros para `JWT_SECRET`/`ADMIN_PASSWORD` — si falta el `.env`, el proceso truena en vez de arrancar con un secreto adivinable.
 - El acceso a galerías con PIN es **por cliente**, no global: cada navegador recibe su propia cookie firmada (JWT) ligada a ese slug específico, en vez de un flag compartido que cualquiera podría aprovechar dentro de la ventana de expiración.
 - Rutas de `/thumb`, `/preview`, `/original` sanitizan el filename con `path.basename()` antes de tocar el filesystem.
-- `/auth/login` tiene rate limiting; `/gallery/:slug/unlock` (el PIN) también debería tenerlo — ver pendientes.
+- `/auth/login`, `/gallery/:slug/unlock` y `/gallery/:slug/download` tienen rate limiting propio; además hay un límite global en toda la API (excluyendo polling interno de workers, `/admin` y las rutas que sirven fotos, que escalan con el tamaño de la galería).
 - No hay IPs internas ni credenciales hardcodeadas en el código fuente — todo lo sensible vive en `.env` (nunca comiteado; confirmado que no existe en el historial de git).
 
 ---
 
 ## Cosas pendientes / deuda técnica conocida
 
-- **Rate limiting en `/gallery/:slug/unlock`** — actualmente el PIN se puede intentar sin límite. Debería llevar el mismo `express-rate-limit` que ya tiene `/auth/login`.
-- **Comparación del PIN no es constante en tiempo** (`project.pin !== pin`) — de baja prioridad si el rate limit de arriba se implementa, pero vale la pena `crypto.timingSafeEqual` en algún momento.
-- **`workerAuth.js` compara el secret con `!==`**, no constante en tiempo — bajo riesgo porque ese endpoint solo debería ser alcanzable dentro de la red Netbird, pero anótalo si algún día se expone más ampliamente.
-- **Schema de la DB incompleto en el repo**: `projects.code`, `projects.cover_photo_id`, la tabla `likes` y la tabla `portfolio` existen en producción pero no en ningún `.sql` versionado. Si se necesita reconstruir la base desde cero (nueva instalación, disaster recovery), hace falta escribir esas migraciones a mano primero.
-- **Doble listener en el formulario de PIN** (`showPinScreen()` en `gallery.js`) — si la pantalla de PIN se vuelve a mostrar más de una vez en la misma carga de página (por ejemplo, si el desbloqueo falla y se reintenta), se apila otro `addEventListener` sobre el mismo form, duplicando el submit. Hay que guardar un flag para adjuntarlo una sola vez.
+Ya resuelto (se queda anotado por contexto histórico, no por pendiente):
+- ~~Rate limiting en `/gallery/:slug/unlock`~~ — tiene su propio `rateLimit` (10/15min), más un límite global (300/5min) en toda la API que excluye rutas de polling interno/admin y las de servir fotos (thumb/preview/original), y uno específico y más estricto para `/download` (5/15min) por lo caro que es generar el ZIP.
+- ~~Comparación del PIN no constante en tiempo~~ — `pinMatches()` usa `crypto.timingSafeEqual`.
+- ~~`workerAuth.js` con `!==`~~ — también migrado a `timingSafeEqual`.
+- ~~Schema de la DB incompleto~~ — `schema.sql` ya documenta `code`, `cover_photo_id`, `likes` y `portfolio`; `migration_watermark.sql` se eliminó (quedó absorbido en el schema principal).
+- ~~Path traversal en `/thumb` y `/preview`~~ — ambas sanitizan con `path.basename()` igual que `/original`.
+- ~~Doble listener en el formulario de PIN~~ — `showPinScreen()` ahora usa un flag (`pinListenerAttached`) para adjuntar el submit una sola vez.
+
+Sin resolver:
+- Ninguno identificado por ahora — la lista se repuebla conforme se sigan encontrando cosas.
