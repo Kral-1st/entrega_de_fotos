@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS projects (
   updated_at TEXT DEFAULT (datetime('now')),
   code TEXT,
   cover_photo_id INTEGER REFERENCES photos(id) ON DELETE SET NULL,
-  download_click_count INTEGER NOT NULL DEFAULT 0
+  download_click_count INTEGER NOT NULL DEFAULT 0,
   watermark_enabled INTEGER NOT NULL DEFAULT 1,
   visible_watermark_enabled INTEGER NOT NULL DEFAULT 1
 );

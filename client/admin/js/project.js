@@ -12,6 +12,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadProject()
     setupUpload()
     setupModals()
+    setupWatermarkToggles()
+    document.getElementById('reprocessBtn').addEventListener('click', triggerReprocess)
 })
 
 // ─── Cargar proyecto ─────────────────────────────────────────────────────────
@@ -62,6 +64,59 @@ function renderProjectHeader(p) {
       const clientLink = `${window.location.origin}/p/${p.slug}`
       document.getElementById('clientLink').textContent = clientLink
       document.getElementById('openLinkBtn').href = clientLink
+
+      renderWatermarkToggles(p)
+}
+
+// ─── Toggles de watermark ─────────────────────────────────────────────────────
+function renderWatermarkToggles(p) {
+  const master  = document.getElementById('wmMasterToggle')
+  const visible = document.getElementById('wmVisibleToggle')
+
+  master.checked = !!p.watermark_enabled
+  visible.checked = !!p.watermark_enabled && !!p.visible_watermark_enabled
+  visible.disabled = !p.watermark_enabled
+}
+
+function setupWatermarkToggles() {
+  const master  = document.getElementById('wmMasterToggle')
+  const visible = document.getElementById('wmVisibleToggle')
+
+  master.addEventListener('change', async () => {
+    // Al apagar el maestro, la firma sobrepuesta se apaga y se bloquea de una vez,
+    // sin esperar la respuesta del server.
+    if (!master.checked) {
+      visible.checked = false
+      visible.disabled = true
+    } else {
+      visible.disabled = false
+    }
+    await saveWatermarkSettings(master.checked, visible.checked)
+  })
+
+  visible.addEventListener('change', async () => {
+    await saveWatermarkSettings(master.checked, visible.checked)
+  })
+}
+
+async function saveWatermarkSettings(watermarkEnabled, visibleWatermarkEnabled) {
+  try {
+    const res = await apiJSON(`/admin/projects/${projectId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        watermark_enabled: watermarkEnabled,
+        visible_watermark_enabled: visibleWatermarkEnabled
+      })
+    })
+    const data = await res.json()
+    if (!res.ok) { showToast(data.error, 'error'); return }
+
+    projectData = data.project
+    renderWatermarkToggles(data.project)
+    showToast('Config de watermark actualizada', 'success')
+  } catch {
+    showToast('Error actualizando watermark', 'error')
+  }
 }
 
 function renderPhotos(photos) {
@@ -247,6 +302,28 @@ async function triggerProcessing() {
   } catch (err) {
     console.error('Error iniciando procesamiento:', err)
   }
+}
+
+// Reprocesa TODAS las fotos del proyecto desde el original (misma banda de
+// progreso y polling que el procesamiento normal después de subir fotos).
+async function triggerReprocess() {
+  if (!confirm('Esto vuelve a procesar TODAS las fotos del proyecto desde el original, con la config de watermark actual. ¿Continuar?')) return
+
+    try {
+      const res = await apiJSON(`/admin/process/${projectData.slug}/reprocess`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) { showToast(data.error, 'error'); return }
+
+      if (data.started) {
+        await loadProject()
+        showProcessingBanner(true, `0 de ${data.count} fotos listas`)
+        startPolling()
+      } else {
+        showToast(data.message || 'No hay fotos que reprocesar', 'error')
+      }
+    } catch {
+      showToast('Error iniciando el reprocesamiento', 'error')
+    }
 }
 
 function startPolling() {

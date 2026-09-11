@@ -126,13 +126,13 @@ router.post('/projects', audit('crear_proyecto', 'project'), async (req, res) =>
 
     ensureProjectDirs(slug)
 
-    const projects = db.prepare(`
+    const project = db.prepare(`
       SELECT p.*,
         (SELECT COUNT(*) FROM photos WHERE project_id = p.id) as photo_count,
         (SELECT COUNT(*) FROM gallery_views WHERE project_id = p.id) as view_count
       FROM projects p
-      ORDER BY p.created_at DESC
-    `).all()
+      WHERE p.id = ?
+    `).get(result.lastInsertRowid)
     res.status(201).json({ project })
   } catch (err) {
     console.error(err)
@@ -143,7 +143,7 @@ router.post('/projects', audit('crear_proyecto', 'project'), async (req, res) =>
 // PUT /admin/projects/:id
 router.put('/projects/:id', audit('actualizar_proyecto', 'project'), async (req, res) => {
   try {
-    const { name, client_name, description, pin, is_active } = req.body
+    const { name, client_name, description, pin, is_active, watermark_enabled, visible_watermark_enabled } = req.body
     const db = getDb()
 
     const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id)
@@ -153,9 +153,16 @@ router.put('/projects/:id', audit('actualizar_proyecto', 'project'), async (req,
       ? (pin ? await bcrypt.hash(String(pin), 12) : null)
       : project.pin
 
+    const wmEnabled = watermark_enabled !== undefined ? (watermark_enabled ? 1 : 0) : project.watermark_enabled
+    // Si el maestro se apaga, la firma visible se apaga con él, sin excepción (se valida aquí, no solo en el front)
+    const visibleWmEnabled = wmEnabled === 0
+      ? 0
+      : (visible_watermark_enabled !== undefined ? (visible_watermark_enabled ? 1 : 0) : project.visible_watermark_enabled)
+
     db.prepare(`
       UPDATE projects
-      SET name = ?, client_name = ?, description = ?, pin = ?, is_active = ?, updated_at = datetime('now')
+      SET name = ?, client_name = ?, description = ?, pin = ?, is_active = ?,
+          watermark_enabled = ?, visible_watermark_enabled = ?, updated_at = datetime('now')
       WHERE id = ?
     `).run(
       name ?? project.name,
@@ -163,6 +170,8 @@ router.put('/projects/:id', audit('actualizar_proyecto', 'project'), async (req,
       description !== undefined ? description : project.description,
       pinHash,
       is_active !== undefined ? (is_active ? 1 : 0) : project.is_active,
+      wmEnabled,
+      visibleWmEnabled,
       project.id
     )
 

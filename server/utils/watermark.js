@@ -13,13 +13,17 @@ const MAX_RETRIES      = 2
 
 const CONCURRENCY = parseInt(process.env.WM_CONCURRENCY || '2', 10)
 
-function applyWatermark(inputPath, outputPath) {
+function applyWatermark(inputPath, outputPath, { visibleWatermark = true } = {}) {
   return new Promise((resolve, reject) => {
     const proc = spawn(PYTHON_BIN, ['-u', WATERMARK_SCRIPT, inputPath, outputPath], {
       env: {
         ...process.env,
-        WM_FIRMA:     process.env.WM_FIRMA,
-        WM_ALGORITMO: process.env.WM_ALGORITMO,
+        WM_FIRMA:     process.env.WM_FIRMA     || '',
+        WM_ALGORITMO: process.env.WM_ALGORITMO || 'dwtDctSvd',
+        // Si la firma sobrepuesta está apagada para este batch, se anulan las rutas
+        // del logo aunque estén configuradas en el .env — watermark.py no pega nada sin ellas.
+        WM_FIRMA_BLANCA: visibleWatermark ? (process.env.WM_FIRMA_BLANCA || '') : '',
+        WM_FIRMA_NEGRA:  visibleWatermark ? (process.env.WM_FIRMA_NEGRA  || '') : '',
       }
     })
     let stdout = ''
@@ -77,7 +81,7 @@ async function generatePreview(srcPath, previewPath) {
   .toFile(previewPath)
 }
 
-async function processPhoto({ slug, filename }) {
+async function processPhoto({ slug, filename, watermarkEnabled = true, visibleWatermarkEnabled = true }) {
   const originalsDir   = storage.getOriginalsDir(slug)
   const watermarkedDir = storage.getWatermarkedDir(slug)
   const thumbsDir      = storage.getThumbsDir(slug)
@@ -88,27 +92,37 @@ async function processPhoto({ slug, filename }) {
   const watermarkedName = stem + '.png'
   const watermarkedPath = path.join(watermarkedDir, watermarkedName)
 
-  console.log(`[watermark] Procesando: ${filename}`)
+  console.log(`[watermark] Procesando: ${filename} (watermark: ${watermarkEnabled ? (visibleWatermarkEnabled ? 'completo' : 'solo invisible') : 'apagado'})`)
 
-  let result
-  let attempts = 0
+  let result = { ok: true }
 
-  while (attempts < MAX_RETRIES) {
-    attempts++
+  if (watermarkEnabled) {
+    let attempts = 0
 
-    if (attempts > 1 && fs.existsSync(watermarkedPath)) {
-      fs.unlinkSync(watermarkedPath)
-      console.log(`[watermark] Reintento ${attempts}/${MAX_RETRIES}: ${filename}`)
-    }
+    while (attempts < MAX_RETRIES) {
+      attempts++
 
-    result = await applyWatermark(inputPath, watermarkedPath)
-
-    if (result.ok) break
-
-      if (!result.retryable || attempts >= MAX_RETRIES) {
-        console.warn(`[watermark] Verificacion dudosa tras ${attempts} intento(s), se acepta: ${filename}`)
-        break
+      if (attempts > 1 && fs.existsSync(watermarkedPath)) {
+        fs.unlinkSync(watermarkedPath)
+        console.log(`[watermark] Reintento ${attempts}/${MAX_RETRIES}: ${filename}`)
       }
+
+      result = await applyWatermark(inputPath, watermarkedPath, { visibleWatermark: visibleWatermarkEnabled })
+
+      if (result.ok) break
+
+        if (!result.retryable || attempts >= MAX_RETRIES) {
+          console.warn(`[watermark] Verificacion dudosa tras ${attempts} intento(s), se acepta: ${filename}`)
+          break
+        }
+    }
+  } else {
+    // Watermark apagado por completo: copia limpia del original a watermarkedPath.
+    // Se mantiene el mismo archivo/ruta que usan descarga, zip, thumb y preview,
+    // así el resto del pipeline no necesita saber que no se firmó nada.
+    const sharp = require('sharp')
+    await fs.promises.mkdir(watermarkedDir, { recursive: true })
+    await sharp(inputPath).rotate().png().toFile(watermarkedPath)
   }
 
   await generateThumb(watermarkedPath,   path.join(thumbsDir,   stem + '.jpg'))
@@ -120,22 +134,24 @@ async function processPhoto({ slug, filename }) {
 }
 
 /**
- * Procesa un lote en paralelo con concurrencia controlada.
- * Lanza hasta CONCURRENCY fotos al mismo tiempo; cuando una termina
- * entra la siguiente, manteniendo siempre el slot ocupado.
+ * Procesa un lote encolándolo en la cola compartida. La concurrencia real la
+ * ponen los workers globales (ver ensureGlobalPullers), que viven una sola
+ * vez por proceso — así WM_CONCURRENCY es un tope real del servidor, sin
+ * importar cuántos proyectos se estén procesando/reprocesando a la vez.
  * onEach se llama en cuanto cada foto termina (orden de finalización,
  * no de inicio), igual que antes para que el polling siga funcionando.
  *
  * @param {string} slug
  * @param {Array<{id, filename}>} photos
  * @param {function} onEach — callback(result) llamado tras cada foto
+ * @param {{watermarkEnabled?: boolean, visibleWatermarkEnabled?: boolean}} settings — config del proyecto, se aplica a todo el batch
  */
-async function processBatch(slug, photos, onEach) {
-  console.log(`[watermark] Iniciando batch: ${slug} (${photos.length} fotos, concurrencia local: ${CONCURRENCY})`)
+async function processBatch(slug, photos, onEach, settings = {}) {
+  console.log(`[watermark] Iniciando batch: ${slug} (${photos.length} fotos, concurrencia global: ${CONCURRENCY})`)
 
   if (photos.length === 0) return []
 
-    watermarkQueue.createBatch(slug, photos)
+    watermarkQueue.createBatch(slug, photos, settings)
 
     const results = []
     watermarkQueue.setOnEach(slug, (result) => {
@@ -145,9 +161,8 @@ async function processBatch(slug, photos, onEach) {
 
     const donePromise = watermarkQueue.whenDone(slug)
 
-    // Workers locales: cada uno jala de la cola compartida cuando tiene slot libre
-    await Promise.all(Array.from({ length: CONCURRENCY }, () => runLocalPuller()))
-    await donePromise // espera también a los workers remotos (TUF) que sigan trabajando
+    ensureGlobalPullers() // no-op si ya están corriendo (batches previos o concurrentes)
+    await donePromise // espera a que ESTE batch termine, aunque los workers sigan jalando de otros
 
     const ok   = results.filter(r => !r.error).length
     const fail = results.length - ok
@@ -156,18 +171,37 @@ async function processBatch(slug, photos, onEach) {
     return results
 }
 
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+let globalPullersStarted = false
+
+// Arranca el pool fijo de workers una sola vez por proceso Node. Cada uno
+// vive para siempre, jalando de la cola compartida (todos los batches/
+// proyectos activos) — por eso CONCURRENCY es un tope real del servidor,
+// no por cada llamada a processBatch.
+function ensureGlobalPullers() {
+  if (globalPullersStarted) return
+    globalPullersStarted = true
+    for (let i = 0; i < CONCURRENCY; i++) {
+      runLocalPuller()
+    }
+}
+
 async function runLocalPuller() {
   while (true) {
     const job = watermarkQueue.getNextAny()
-    if (!job) return
-      const { batchId, id, filename } = job
-      try {
-        const { watermarkedFilename } = await processPhoto({ slug: batchId, filename })
-        watermarkQueue.reportDone(batchId, { id, watermarkedFilename, error: null })
-      } catch (err) {
-        console.error(`[watermark] Error en ${filename}:`, err.message)
-        watermarkQueue.reportDone(batchId, { id, watermarkedFilename: null, error: err.message })
-      }
+    if (!job) {
+      await sleep(300) // sin trabajo por ahora: espera corta y vuelve a preguntar
+      continue
+    }
+    const { batchId, id, filename, watermarkEnabled, visibleWatermarkEnabled } = job
+    try {
+      const { watermarkedFilename } = await processPhoto({ slug: batchId, filename, watermarkEnabled, visibleWatermarkEnabled })
+      watermarkQueue.reportDone(batchId, { id, watermarkedFilename, error: null })
+    } catch (err) {
+      console.error(`[watermark] Error en ${filename}:`, err.message)
+      watermarkQueue.reportDone(batchId, { id, watermarkedFilename: null, error: err.message })
+    }
   }
 }
 

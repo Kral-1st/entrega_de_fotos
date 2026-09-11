@@ -84,6 +84,35 @@
       white-space: nowrap;
     }
 
+    /* Watermark toggles */
+    .wm-settings {
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .wm-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .wm-row.wm-row--sub { padding-left: 20px; }
+    .wm-row-label { font-size: .85rem; }
+    .wm-row-label .hint { display: block; color: var(--text-3); font-size: .75rem; margin-top: 2px; }
+    .wm-switch { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }
+    .wm-switch input { opacity: 0; width: 0; height: 0; }
+    .wm-switch .track {
+      position: absolute; inset: 0; cursor: pointer;
+      background: var(--border); border-radius: 999px; transition: background .15s;
+    }
+    .wm-switch .track::before {
+      content: ''; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px;
+      background: var(--text); border-radius: 50%; transition: transform .15s;
+    }
+    .wm-switch input:checked + .track { background: var(--accent); }
+    .wm-switch input:checked + .track::before { transform: translateX(18px); }
+    .wm-switch input:disabled + .track { opacity: .35; cursor: not-allowed; }
+
     /* Upload zone */
     .upload-zone {
       border: 2px dashed var(--border);
@@ -344,6 +373,28 @@
         <a class="btn btn--ghost btn--sm" id="openLinkBtn" target="_blank">Abrir</a>
       </div>
 
+      <!-- Config de watermark (aplica a las próximas fotos que se suban/procesen) -->
+      <div class="wm-settings">
+        <div class="wm-row">
+          <span class="wm-row-label">
+            Watermark
+          </span>
+          <label class="wm-switch">
+            <input type="checkbox" id="wmMasterToggle">
+            <span class="track"></span>
+          </label>
+        </div>
+        <div class="wm-row wm-row--sub">
+          <span class="wm-row-label">
+            Firma sobrepuesta
+          </span>
+          <label class="wm-switch">
+            <input type="checkbox" id="wmVisibleToggle">
+            <span class="track"></span>
+          </label>
+        </div>
+      </div>
+
       <!-- Upload zone -->
       <div class="upload-zone" id="uploadZone">
         <input type="file" id="fileInput" multiple accept="image/jpeg,image/png,image/webp,image/tiff,image/heic">
@@ -370,6 +421,9 @@
       <!-- Fotos -->
       <div class="photos-header">
         <h2>Fotos <span id="photosCount" style="color:var(--text-3);font-weight:400;font-size:.9rem;"></span></h2>
+        <button class="btn btn--ghost btn--sm" id="reprocessBtn">
+          Reprocesar fotos
+        </button>
         <button class="btn btn--ghost btn--sm" id="downloadZipBtn" style="display:none">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>

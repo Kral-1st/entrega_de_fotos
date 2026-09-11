@@ -1,16 +1,18 @@
 const batches = new Map() // batchId -> { queue, total, completed, onEach, resolve }
 
-function createBatch(batchId, photos) {
-    const state = { queue: [...photos], total: photos.length, completed: 0, onEach: null, resolve: null }
+function createBatch(batchId, photos, settings = {}) {
+    const state = { queue: [...photos], total: photos.length, completed: 0, onEach: null, resolve: null, settings }
     batches.set(batchId, state)
     return state
 }
 
 // Saca la siguiente foto pendiente de cualquier batch activo (el que sea).
+// Incluye la config de watermark del batch para que el worker que la tome
+// (local o remoto) sepa si debe aplicarla, sin tener que consultar la DB.
 function getNextAny() {
     for (const [batchId, state] of batches) {
         if (state.queue.length > 0) {
-            return { batchId, ...state.queue.shift() }
+            return { batchId, ...state.queue.shift(), ...state.settings }
         }
     }
     return null

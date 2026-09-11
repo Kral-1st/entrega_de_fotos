@@ -53,8 +53,44 @@ router.post('/:slug', adminAuth, async (req, res) => {
     runBatch(slug, project.id)
 })
 
+// POST /admin/process/:slug/reprocess
+// Reprocesa TODAS las fotos del proyecto desde el original, sin importar su
+// estado actual — reusa runBatch, que ya lee la config de watermark vigente
+// del proyecto y pisa watermarked/thumb/preview de cada foto en cuanto termina.
+router.post('/:slug/reprocess', adminAuth, async (req, res) => {
+  const { slug } = req.params
+  const db = getDb()
+  const project = db.prepare('SELECT id FROM projects WHERE slug = ?').get(slug)
+  if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' })
+
+    if (processingLock.has(slug)) {
+      return res.status(409).json({ error: 'Ya se está procesando este proyecto' })
+    }
+
+    const total = db.prepare(`
+    SELECT COUNT(*) AS c FROM photos WHERE project_id = ?
+    `).get(project.id).c
+
+    if (total === 0) {
+      return res.json({ started: false, count: 0, message: 'No hay fotos que reprocesar' })
+    }
+
+    db.prepare(`UPDATE photos SET watermark_status = 'pending' WHERE project_id = ?`).run(project.id)
+
+    res.json({ started: true, count: total })
+    runBatch(slug, project.id)
+})
+
 async function runBatch(slug, projectId) {
   const db = getDb()
+
+  const project = db.prepare(
+    'SELECT watermark_enabled, visible_watermark_enabled FROM projects WHERE id = ?'
+  ).get(projectId)
+  const watermarkSettings = {
+    watermarkEnabled: !!(project?.watermark_enabled ?? 1),
+    visibleWatermarkEnabled: !!(project?.visible_watermark_enabled ?? 1)
+  }
 
   // Limpiar PNGs corruptos y resetear 'processing' a 'pending'
   db.prepare(`
@@ -100,7 +136,7 @@ async function runBatch(slug, projectId) {
         db.prepare(`UPDATE photos SET watermark_status = 'done', watermarked_filename = ? WHERE id = ?`)
         .run(result.watermarkedFilename, result.id)
       }
-    })
+    }, watermarkSettings)
     .then(results => {
       const ok = results.filter(r => !r.error).length
       console.log(`[processing] ${slug}: ${ok}/${results.length} OK`)
