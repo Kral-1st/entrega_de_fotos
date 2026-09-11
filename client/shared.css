@@ -1,0 +1,221 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+ s hared.css — fuente única de verd*ad del diseño. Todo .html del sitio
+ (homepage, admin, galería, privacidad) debe importar este archivo antes
+ de sus propios estilos particulares. Cambios de paleta/tipografía van
+ AQUÍ, no repetidos en cada página.
+ ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Reset & Base ─────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Paleta (nombres nuevos, estilo homepage) */
+  --bg:           #060606;
+  --bg-panel:     #0d0d0d;
+  --bg-panel-2:   #141414;
+  --line:         #242424;
+  --text:         #f4f3f0;
+  --text-dim:     #8d8b87;
+  --text-faint:   #4a4846;
+  --accent:       #ff2f6e;
+  --accent-hover: #ff4d80;
+  --accent-2:     #00c2ff;
+  --danger:       #c0392b;
+  --danger-2:     #e74c3c;
+  --success:      #27ae60;
+
+  --radius:    4px;
+  --radius-lg: 10px;
+  --shadow:    0 4px 24px rgba(0,0,0,.6);
+
+  --font-sans:    'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Alias — nombres viejos que ya usa el admin/galería, mismos valores.
+   No se borran para no tener que *reescribir el markup de esas páginas. */
+  --bg-2:     var(--bg-panel);
+  --bg-3:     var(--bg-panel-2);
+  --border:   var(--line);
+  --text-2:   var(--text-dim);
+  --text-3:   var(--text-faint);
+}
+
+html { font-size: 16px; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Typography ───────────────────────────────────────────────────────────── */
+h1 { font-family: var(--font-display); font-weight: 400; letter-spacing: .02em; line-height: 1.05; }
+h2, h3, h4 { font-family: var(--font-sans); line-height: 1.2; font-weight: 600; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-hover); }
+
+/* Utilidad para títulos grandes tipo hero (Bebas Neue) fuera de h1 */
+.display { font-family: var(--font-display); letter-spacing: .02em; }
+
+/* ─── Buttons ──────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: var(--radius);
+  border: none;
+  font-family: var(--font-sans);
+  font-size: .875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .15s, opacity .15s, transform .1s;
+  white-space: nowrap;
+}
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+
+.btn--primary  { background: var(--accent); color: #0a0a0a; }
+.btn--primary:hover { background: var(--accent-hover); }
+
+.btn--ghost {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--line);
+}
+.btn--ghost:hover { color: var(--text); border-color: var(--text-faint); }
+
+.btn--danger   { background: var(--danger); color: #fff; }
+.btn--danger:hover { background: var(--danger-2); }
+
+.btn--sm { padding: 6px 12px; font-size: .8rem; }
+.btn--lg { padding: 12px 28px; font-size: 1rem; }
+
+.btn--icon {
+  padding: 8px;
+  border-radius: var(--radius);
+  background: var(--bg-panel-2);
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.btn--icon:hover { color: var(--text); border-color: var(--text-faint); }
+
+/* ─── Forms ────────────────────────────────────────────────────────────────── */
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group label { font-size: .8rem; color: var(--text-dim); font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }
+
+.input {
+  background: #000;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: .9rem;
+  padding: 10px 14px;
+  transition: border-color .15s;
+  outline: none;
+  width: 100%;
+}
+.input:focus { border-color: var(--accent); }
+.input::placeholder { color: var(--text-faint); }
+
+textarea.input { resize: vertical; min-height: 80px; }
+
+/* ─── Cards ────────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+/* ─── Badge ────────────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: .75rem;
+  font-weight: 500;
+}
+.badge--active   { background: rgba(39,174,96,.15); color: var(--success); }
+.badge--inactive { background: rgba(141,139,135,.12); color: var(--text-dim); }
+.badge--pin      { background: rgba(255,47,110,.12); color: var(--accent); }
+
+/* ─── Toast ────────────────────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--bg-panel-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 12px 24px;
+  border-radius: var(--radius-lg);
+  font-size: .875rem;
+  opacity: 0;
+  transition: opacity .25s, transform .25s;
+  z-index: 9999;
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
+.toast--visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast--success { border-color: var(--success); color: var(--success); }
+.toast--error   { border-color: var(--danger-2); color: var(--danger-2); }
+
+/* ─── Modal ────────────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(6,6,6,.8);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  width: 100%;
+  max-width: 480px;
+  transform: scale(.96);
+  transition: transform .2s;
+}
+.modal-overlay.open .modal { transform: scale(1); }
+.modal h2 { margin-bottom: 20px; font-size: 1.2rem; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+/* ─── Spinner ──────────────────────────────────────────────────────────────── */
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Empty state ──────────────────────────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 60px 20px;
+  color: var(--text-faint);
+  text-align: center;
+}
+.empty-state svg { opacity: .3; }
+.empty-state p { font-size: .9rem; }

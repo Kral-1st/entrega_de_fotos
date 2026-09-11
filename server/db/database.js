@@ -1,0 +1,54 @@
+const Database = require('better-sqlite3')
+const fs = require('fs')
+const path = require('path')
+const bcrypt = require('bcryptjs')
+const config = require('../config')
+
+let db
+
+function getDb() {
+  if (!db) {
+    throw new Error('Base de datos no inicializada. Llama initDb() primero.')
+  }
+  return db
+}
+
+async function initDb() {
+  // Asegurar que el directorio existe
+  const dbDir = path.dirname(config.paths.db)
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true })
+  }
+
+  db = new Database(config.paths.db)
+  db.pragma('journal_mode = WAL')
+  db.pragma('foreign_keys = ON')
+
+  // Ejecutar schema
+  const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8')
+  db.exec(schema)
+
+  // Migraciones simples: agrega columnas nuevas a bases de datos ya existentes
+  function ensureColumn(table, column, definition) {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all()
+    if (!cols.some(c => c.name === column)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`)
+    }
+  }
+  ensureColumn('projects', 'download_click_count', 'INTEGER NOT NULL DEFAULT 0')
+  ensureColumn('projects', 'watermark_enabled', 'INTEGER NOT NULL DEFAULT 1')
+  ensureColumn('projects', 'visible_watermark_enabled', 'INTEGER NOT NULL DEFAULT 1')
+
+  // Crear admin por defecto si no existe
+  const admin = db.prepare('SELECT id FROM admin WHERE id = 1').get()
+  if (!admin) {
+    const hash = await bcrypt.hash(config.admin.password, 12)
+    db.prepare('INSERT INTO admin (id, password_hash) VALUES (1, ?)').run(hash)
+    console.log('✓ Admin creado con la contraseña del .env')
+  }
+
+  console.log('✓ Base de datos inicializada:', config.paths.db)
+  return db
+}
+
+module.exports = { getDb, initDb }

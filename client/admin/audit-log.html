@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auditoría — Entrega de Fotos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../shared.css">
+  <style>
+    .layout { display: flex; flex-direction: column; min-height: 100vh; }
+    .navbar {
+      background: var(--bg-2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .navbar-brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: .95rem; }
+    .navbar-brand .dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; }
+    .navbar-actions { display: flex; align-items: center; gap: 12px; }
+    .main { flex: 1; padding: 40px 32px; max-width: 1100px; margin: 0 auto; width: 100%; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; }
+    .page-header h1 { font-size: 1.5rem; }
+    .page-header p { color: var(--text-2); font-size: .875rem; margin-top: 4px; }
+
+    table.audit-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    table.audit-table th {
+      text-align: left;
+      color: var(--text-2);
+      font-weight: 500;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    table.audit-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    table.audit-table tr:hover { background: var(--bg-2); }
+    .audit-action {
+      font-family: var(--font-mono);
+      font-size: .78rem;
+      background: var(--bg-3);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .audit-detail {
+      font-family: var(--font-mono);
+      font-size: .72rem;
+      color: var(--text-3);
+      max-width: 320px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  </style>
+  <link rel="icon" href="/favicon.ico">
+</head>
+<body>
+  <div class="layout">
+    <nav class="navbar">
+      <div class="navbar-brand">
+        <div class="dot"></div>
+        Entrega de Fotos
+      </div>
+      <div class="navbar-actions">
+        <a href="dashboard.html" class="btn btn--ghost btn--sm">Proyectos</a>
+        <button class="btn btn--ghost btn--sm" id="logoutBtn">Cerrar sesión</button>
+      </div>
+    </nav>
+
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Auditoría</h1>
+          <p id="logCount">Cargando...</p>
+        </div>
+        <button class="btn btn--ghost btn--sm" id="refreshBtn">Actualizar</button>
+      </div>
+
+      <div style="overflow-x:auto">
+        <table class="audit-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Acción</th>
+              <th>Tipo</th>
+              <th>ID</th>
+              <th>IP</th>
+              <th>Detalle</th>
+            </tr>
+          </thead>
+          <tbody id="auditBody">
+            <tr><td colspan="6" style="text-align:center;padding:30px 0;color:var(--text-2)">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script src="../shared.js"></script>
+  <script src="js/audit-log.js"></script>
+</body>
+</html>

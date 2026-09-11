@@ -1,0 +1,4 @@
+invisible-watermark==0.1.5
+opencv-python-headless==4.8.1.78
+numpy==1.26.4
+PyWavelets==1.5.0
