@@ -41,6 +41,9 @@ async function notifyNewPhotos(projectId, { projectName, slug, count }) {
                         subject: title,
                         html: `<p>${body}</p><p><a href="${url}">${url}</a></p>`
                     })
+                    console.log(`[notify] Correo enviado a ${sub.target} (${slug})`)
+                } else if (sub.channel === 'email' && !transporter) {
+                    console.warn(`[notify] Hay suscriptor de email pero no hay transporter (revisa SMTP_HOST en .env)`)
                 }
             } catch (err) {
                 if (err.statusCode === 410 || err.statusCode === 404) {
