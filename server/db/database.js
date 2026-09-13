@@ -38,6 +38,7 @@ async function initDb() {
   ensureColumn('projects', 'download_click_count', 'INTEGER NOT NULL DEFAULT 0')
   ensureColumn('projects', 'watermark_enabled', 'INTEGER NOT NULL DEFAULT 1')
   ensureColumn('projects', 'visible_watermark_enabled', 'INTEGER NOT NULL DEFAULT 1')
+  ensureColumn('photos', 'captured_at', 'TEXT')
 
   // Crear admin por defecto si no existe
   const admin = db.prepare('SELECT id FROM admin WHERE id = 1').get()

@@ -77,9 +77,23 @@ async function generatePreview(slug, filename) {
 async function getImageMeta(filePath) {
   try {
     const meta = await sharp(filePath).metadata()
-    return { width: meta.width || null, height: meta.height || null }
+    return { width: meta.width || null, height: meta.height || null, capturedAt: await getCapturedAt(filePath) }
   } catch {
-    return { width: null, height: null }
+    return { width: null, height: null, capturedAt: null }
+  }
+}
+
+// Fecha/hora en que se tomó la foto según el EXIF (DateTimeOriginal, o
+// CreateDate si esa no viene). Si la imagen no trae EXIF, devuelve null y
+// arriba se usa created_at (fecha de subida) como respaldo para ordenar.
+async function getCapturedAt(filePath) {
+  try {
+    const exifr = require('exifr')
+    const data = await exifr.parse(filePath, { pick: ['DateTimeOriginal', 'CreateDate'] })
+    const date = data?.DateTimeOriginal || data?.CreateDate
+    return date instanceof Date && !isNaN(date) ? date.toISOString() : null
+  } catch {
+    return null
   }
 }
 

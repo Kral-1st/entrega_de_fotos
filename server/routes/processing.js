@@ -4,6 +4,7 @@ const router    = express.Router()
 const adminAuth = require('../middleware/adminAuth')
 const { getDb } = require('../db/database')
 const { processBatch } = require('../utils/watermark')
+const { notifyNewPhotos } = require('../utils/notify')
 
 const processingLock = new Map()
 
@@ -85,7 +86,7 @@ async function runBatch(slug, projectId) {
   const db = getDb()
 
   const project = db.prepare(
-    'SELECT watermark_enabled, visible_watermark_enabled FROM projects WHERE id = ?'
+    'SELECT name, watermark_enabled, visible_watermark_enabled FROM projects WHERE id = ?'
   ).get(projectId)
   const watermarkSettings = {
     watermarkEnabled: !!(project?.watermark_enabled ?? 1),
@@ -140,6 +141,10 @@ async function runBatch(slug, projectId) {
     .then(results => {
       const ok = results.filter(r => !r.error).length
       console.log(`[processing] ${slug}: ${ok}/${results.length} OK`)
+      if (ok > 0) {
+        notifyNewPhotos(projectId, { projectName: project.name, slug, count: ok })
+        .catch(err => console.error(`[notify] Error notificando ${slug}:`, err.message))
+      }
     })
     .catch(err => {
       console.error(`[processing] Error fatal en batch ${slug}:`, err)

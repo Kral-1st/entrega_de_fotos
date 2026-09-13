@@ -8,6 +8,7 @@ const { streamProjectZip } = require('../utils/zip')
 const config = require('../config')
 const bcrypt = require('bcryptjs')
 const rateLimit = require('express-rate-limit')
+const { notifyNewPhotos } = require('../utils/notify')
 
 const unlockLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
@@ -120,10 +121,10 @@ router.get('/:slug', projectAccess, (req, res) => {
     }
 
     const photos = db.prepare(`
-    SELECT id, filename, original_name, size, width, height, created_at
+    SELECT id, filename, original_name, size, width, height, created_at, captured_at
     FROM photos
     WHERE project_id = ? AND watermark_status = 'done'
-    ORDER BY created_at ASC
+    ORDER BY COALESCE(captured_at, created_at) ASC
     `).all(project.id)
 
     const baseApi = '/api'
@@ -248,7 +249,7 @@ router.get('/:slug/download', downloadLimiter, projectAccess, (req, res) => {
     const { project } = req
 
     const photos = db.prepare(
-      'SELECT * FROM photos WHERE project_id = ? AND watermark_status = \'done\' ORDER BY created_at ASC'
+      'SELECT * FROM photos WHERE project_id = ? AND watermark_status = \'done\' ORDER BY COALESCE(captured_at, created_at) ASC'
     ).all(project.id)
 
     if (photos.length === 0) {
@@ -293,6 +294,30 @@ router.post('/:slug/likes/:photoId', projectAccess, (req, res) => {
     console.error(err)
     res.status(500).json({ error: 'Error procesando like' })
   }
+})
+
+router.get('/:slug/notify/vapid-key', projectAccess, (req, res) => {
+  res.json({ key: config.notify.vapidPublicKey })
+})
+
+router.post('/:slug/notify/push', projectAccess, (req, res) => {
+  const { subscription } = req.body
+  if (!subscription || !subscription.endpoint) return res.status(400).json({ error: 'Suscripción inválida' })
+    const db = getDb()
+    db.prepare(`INSERT INTO notification_subscribers (project_id, channel, target)
+    VALUES (?, 'push', ?) ON CONFLICT(project_id, channel, target) DO NOTHING`)
+    .run(req.project.id, JSON.stringify(subscription))
+    res.json({ success: true })
+})
+
+router.post('/:slug/notify/email', projectAccess, (req, res) => {
+  const { email } = req.body
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Email inválido' })
+    const db = getDb()
+    db.prepare(`INSERT INTO notification_subscribers (project_id, channel, target)
+    VALUES (?, 'email', ?) ON CONFLICT(project_id, channel, target) DO NOTHING`)
+    .run(req.project.id, email)
+    res.json({ success: true })
 })
 
 module.exports = router

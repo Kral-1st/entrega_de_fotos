@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS photos (
   created_at TEXT DEFAULT (datetime('now')),
   watermark_status TEXT NOT NULL DEFAULT 'done',
   watermarked_filename TEXT,
+  captured_at TEXT,
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
@@ -80,3 +81,14 @@ CREATE TABLE IF NOT EXISTS gallery_views (
   created_at TEXT DEFAULT (datetime('now')),
   UNIQUE(project_id, session_id)
 );
+
+-- Suscripciones a notificaciones de fotos nuevas
+CREATE TABLE IF NOT EXISTS notification_subscribers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  channel TEXT NOT NULL CHECK(channel IN ('push','email')),
+  target TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(project_id, channel, target)
+);
+CREATE INDEX IF NOT EXISTS idx_notif_project ON notification_subscribers(project_id);

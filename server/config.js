@@ -43,6 +43,17 @@ module.exports = {
     previewWidth: 1200,
     previewQuality: 80,
     thumbQuality: 75
+  },
+
+  notify: {
+    vapidPublicKey: process.env.VAPID_PUBLIC_KEY || '',
+    vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || '',
+    vapidSubject: process.env.VAPID_SUBJECT || '',
+    smtpHost: process.env.SMTP_HOST || '',
+    smtpPort: parseInt(process.env.SMTP_PORT || '587', 10),
+    smtpUser: process.env.SMTP_USER || '',
+    smtpPass: process.env.SMTP_PASS || '',
+    smtpFrom: process.env.SMTP_FROM || ''
   }
 }
 // ─── Fail-fast: sin estos secretos, JWT/PIN/worker quedan forjables ───────────

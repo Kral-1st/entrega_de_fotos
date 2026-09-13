@@ -86,7 +86,7 @@ router.get('/projects/:id', (req, res) => {
     if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' })
 
       const photos = db.prepare(
-        'SELECT * FROM photos WHERE project_id = ? ORDER BY created_at ASC'
+        'SELECT * FROM photos WHERE project_id = ? ORDER BY COALESCE(captured_at, created_at) ASC'
       ).all(project.id)
 
       const viewCount = db.prepare('SELECT COUNT(*) as c FROM gallery_views WHERE project_id = ?').get(project.id).c
@@ -243,9 +243,9 @@ router.post('/projects/:id/photos', upload.array('photos', 100), audit('subir_fo
 
         // Insertar con watermark_status = 'pending' — sin thumb/preview aún
         const result = db.prepare(`
-          INSERT INTO photos (project_id, filename, original_name, size, width, height, watermark_status)
-          VALUES (?, ?, ?, ?, ?, ?, 'pending')
-        `).run(project.id, uniqueName, file.originalname, file.size, meta.width, meta.height)
+          INSERT INTO photos (project_id, filename, original_name, size, width, height, watermark_status, captured_at)
+          VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+        `).run(project.id, uniqueName, file.originalname, file.size, meta.width, meta.height, meta.capturedAt)
 
         inserted.push({
           id: result.lastInsertRowid,
