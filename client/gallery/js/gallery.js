@@ -149,9 +149,83 @@ function renderGallery() {
     `
   }
 
-  document.getElementById('downloadAllBtn').addEventListener('click', () => {
-    window.location.href = `${API_BASE}/gallery/${slug}/download`
+  const downloadAllBtn = document.getElementById('downloadAllBtn')
+  const downloadAllLabel = downloadAllBtn.innerHTML
+
+  downloadAllBtn.addEventListener('click', async () => {
+    downloadAllBtn.disabled = true
+    try {
+      await attemptDownload()
+    } finally {
+      downloadAllBtn.disabled = false
+      downloadAllBtn.innerHTML = downloadAllLabel
+    }
   })
+
+  async function attemptDownload(retries = 60) {
+    let statusRes
+    try {
+      statusRes = await fetch(`${API_BASE}/gallery/${slug}/download/status`, { credentials: 'include' })
+    } catch {
+      showToast('Error de conexión', 'error')
+      return
+    }
+
+    if (!statusRes.ok) {
+      const data = await statusRes.json().catch(() => ({}))
+      showToast(data.error || 'No se pudo verificar el ZIP', 'error')
+      return
+    }
+
+    const { ready } = await statusRes.json()
+
+    if (!ready) {
+      if (retries <= 0) {
+        showToast('El ZIP está tardando más de lo esperado, intenta de nuevo en un momento', 'error')
+        return
+      }
+      downloadAllBtn.textContent = 'Generando ZIP, espera...'
+      await new Promise(r => setTimeout(r, 4000))
+      return attemptDownload(retries - 1)
+    }
+
+    // Ya está listo — esta sí cuenta contra el rate limit real, pero se llama una sola vez
+    const res = await fetch(`${API_BASE}/gallery/${slug}/download`, {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' }
+    })
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      showToast(data.error || 'No se pudo descargar el ZIP', 'error')
+      return
+    }
+
+    const total = parseInt(res.headers.get('Content-Length') || '0', 10)
+    const reader = res.body.getReader()
+    const chunks = []
+    let received = 0
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+        chunks.push(value)
+        received += value.length
+        downloadAllBtn.textContent = total > 0
+        ? `Descargando... ${Math.round((received / total) * 100)}% (${(received / 1048576).toFixed(1)}/${(total / 1048576).toFixed(1)} MB)`
+        : `Descargando... ${(received / 1048576).toFixed(1)} MB`
+    }
+
+    const blob = new Blob(chunks, { type: 'application/zip' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${slug}-fotos.zip`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
 
   const grid = document.getElementById('photoGrid')
   grid.innerHTML = photos.map((ph, i) => `

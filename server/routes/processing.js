@@ -5,7 +5,7 @@ const adminAuth = require('../middleware/adminAuth')
 const { getDb } = require('../db/database')
 const { processBatch } = require('../utils/watermark')
 const { notifyNewPhotos } = require('../utils/notify')
-const { invalidateZipCache } = require('../utils/zip')
+const { invalidateZipCache, pregenerateZip } = require('../utils/zip')
 
 const processingLock = new Map()
 
@@ -143,9 +143,17 @@ async function runBatch(slug, projectId) {
       const ok = results.filter(r => !r.error).length
       console.log(`[processing] ${slug}: ${ok}/${results.length} OK`)
       invalidateZipCache(slug)
+
       if (ok > 0) {
         notifyNewPhotos(projectId, { projectName: project.name, slug, count: ok })
         .catch(err => console.error(`[notify] Error notificando ${slug}:`, err.message))
+
+        const donePhotos = db.prepare(
+          `SELECT * FROM photos WHERE project_id = ? AND watermark_status = 'done' ORDER BY COALESCE(captured_at, created_at) ASC`
+        ).all(projectId)
+        pregenerateZip({ slug, ...project }, donePhotos)
+        .then(() => console.log(`[zip] Pregenerado para ${slug}`))
+        .catch(err => console.error(`[zip] Error pregenerando ${slug}:`, err.message))
       }
     })
     .catch(err => {

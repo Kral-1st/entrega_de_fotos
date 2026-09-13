@@ -4,11 +4,12 @@ const fs = require('fs')
 const { getDb } = require('../db/database')
 const { projectAccess, grantAccess } = require('../middleware/projectAccess')
 const { getOriginalsDir, getWatermarkedDir, getThumbsDir, getPreviewsDir } = require('../utils/storage')
-const { streamProjectZip } = require('../utils/zip')
+const { streamProjectZip, zipReady, pregenerateZip } = require('../utils/zip')
 const config = require('../config')
 const bcrypt = require('bcryptjs')
 const rateLimit = require('express-rate-limit')
 const { notifyNewPhotos } = require('../utils/notify')
+const { renderDownloadWaitPage } = require('../utils/downloadWaitPage')
 
 const unlockLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
@@ -242,6 +243,37 @@ router.get('/:slug/preview/:filename', projectAccess, (req, res) => {
   res.sendFile(previewPath)
 })
 
+// GET /gallery/:slug/download/status — chequeo barato (fs.existsSync), sin
+// rate limit agresivo: es lo que hace polling la página de espera. Si nadie
+// ha empezado a generar el ZIP todavía, lo dispara aquí mismo en background.
+router.get('/:slug/download/status', projectAccess, (req, res) => {
+  try {
+    const db = getDb()
+    const { project } = req
+    const slug = req.params.slug
+
+    if (zipReady(slug)) {
+      return res.json({ ready: true })
+    }
+
+    const photos = db.prepare(
+      `SELECT * FROM photos WHERE project_id = ? AND watermark_status = 'done' ORDER BY COALESCE(captured_at, created_at) ASC`
+    ).all(project.id)
+
+    if (photos.length === 0) {
+      return res.status(404).json({ error: 'No hay fotos disponibles' })
+    }
+
+    pregenerateZip({ slug, ...project }, photos)
+    .catch(err => console.error(`[zip] Error generando ${slug}:`, err.message))
+
+    res.json({ ready: false })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Error verificando el ZIP' })
+  }
+})
+
 // GET /gallery/:slug/download — ZIP desde watermarked/
 router.get('/:slug/download', downloadLimiter, projectAccess, (req, res) => {
   try {
@@ -256,8 +288,15 @@ router.get('/:slug/download', downloadLimiter, projectAccess, (req, res) => {
       return res.status(404).json({ error: 'No hay fotos disponibles' })
     }
 
+    // Navegación directa del navegador (pegar el link, restaurar una pestaña
+    // cerrada) manda Accept: text/html — le damos una página que hace polling
+    // sola, en vez del JSON crudo de "building": true. Nuestro propio botón
+    // pide explícitamente application/json, así que nunca cae aquí.
+    if (req.accepts('html') && !zipReady(req.params.slug)) {
+      return res.status(200).send(renderDownloadWaitPage(req.params.slug))
+    }
+
     db.prepare('UPDATE projects SET download_click_count = download_click_count + 1 WHERE id = ?').run(project.id)
-    // Pasar flag para que zip.js sepa que debe servir desde watermarked/
     streamProjectZip(res, { slug: req.params.slug, ...project }, photos, { useWatermarked: true })
   } catch (err) {
     console.error(err)
