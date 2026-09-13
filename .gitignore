@@ -7,3 +7,4 @@ uploads/*
 venv/
 logs/
 package-lock.json
+watermark/venv
