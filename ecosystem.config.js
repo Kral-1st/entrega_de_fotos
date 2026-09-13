@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: 'entrega-fotos-api-dev',
+      name: process.env.NAME,
       script: 'server/index.js',
       cwd: process.env.CWD,
       instances: 1,
@@ -9,7 +9,7 @@ module.exports = {
       watch: false,
       max_memory_restart: '1G',
       env: {
-        NODE_ENV: 'development'
+        NODE_ENV: process.env.NODE_ENV
       },
       error_file: process.env.ERROR_FILE,
       out_file: process.env.OUT_FILE,
