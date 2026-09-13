@@ -6,6 +6,8 @@ const bcrypt = require('bcryptjs')
 const slugify = require('slugify')
 const { getDb } = require('../db/database')
 const adminAuth = require('../middleware/adminAuth')
+const { invalidateZipCache } = require('../utils/zip')
+
 const {
   ensureProjectDirs,
   getImageMeta,
@@ -283,6 +285,7 @@ router.delete('/photos/:photoId', audit('eliminar_foto', 'photo'), (req, res) =>
 
     db.prepare('DELETE FROM photos WHERE id = ?').run(photo.id)
     deletePhotoFiles(photo.slug, photo.filename)
+    invalidateZipCache(photo.slug)
 
     res.json({ message: 'Foto eliminada' })
   } catch (err) {
