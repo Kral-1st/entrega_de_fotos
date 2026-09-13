@@ -329,3 +329,70 @@ function showError(msg) {
   </div>
   `
 }
+
+// ─── Notificaciones por correo ─────────────────────────────────────────────────
+const notifyBtn = document.getElementById('notifyBtn')
+const notifyPanel = document.getElementById('notifyPanel')
+const notifyForm = document.getElementById('notifyForm')
+const notifyBtnLabel = document.getElementById('notifyBtnLabel')
+
+function notifyStorageKey() { return `notify_subscribed_${slug}` }
+
+function isSubscribed() { return !!localStorage.getItem(notifyStorageKey()) }
+
+function updateNotifyButton() {
+  if (isSubscribed()) {
+    notifyBtnLabel.textContent = 'Ya recibirás avisos'
+    notifyBtn.classList.add('notify-btn--subscribed')
+  } else {
+    notifyBtnLabel.textContent = 'Avisarme de fotos nuevas'
+    notifyBtn.classList.remove('notify-btn--subscribed')
+  }
+}
+updateNotifyButton()
+
+notifyBtn?.addEventListener('click', () => {
+  if (isSubscribed()) {
+    showToast('Ya estás suscrito a los avisos de este álbum', 'success')
+    return
+  }
+  notifyPanel.style.display = notifyPanel.style.display === 'none' ? 'block' : 'none'
+})
+
+document.addEventListener('click', (e) => {
+  if (notifyPanel && notifyPanel.style.display !== 'none' &&
+    !notifyPanel.contains(e.target) && e.target !== notifyBtn && !notifyBtn.contains(e.target)) {
+    notifyPanel.style.display = 'none'
+    }
+})
+
+notifyForm?.addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const email = document.getElementById('notifyEmail').value.trim()
+  const submitBtn = document.getElementById('notifySubmitBtn')
+  submitBtn.disabled = true
+  submitBtn.textContent = 'Guardando...'
+
+  try {
+    const res = await fetch(`${API_BASE}/gallery/${slug}/notify/email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email })
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      showToast(data.error || 'No se pudo guardar', 'error')
+      return
+    }
+    localStorage.setItem(notifyStorageKey(), '1')
+    updateNotifyButton()
+    notifyPanel.style.display = 'none'
+    showToast('Listo, te avisamos cuando haya fotos nuevas', 'success')
+  } catch {
+    showToast('Error de conexión', 'error')
+  } finally {
+    submitBtn.disabled = false
+    submitBtn.textContent = 'Avisarme'
+  }
+})
