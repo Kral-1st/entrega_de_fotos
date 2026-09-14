@@ -189,42 +189,10 @@ function renderGallery() {
       return attemptDownload(retries - 1)
     }
 
-    // Ya está listo — esta sí cuenta contra el rate limit real, pero se llama una sola vez
-    const res = await fetch(`${API_BASE}/gallery/${slug}/download`, {
-      credentials: 'include',
-      headers: { 'Accept': 'application/json' }
-    })
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      showToast(data.error || 'No se pudo descargar el ZIP', 'error')
-      return
-    }
-
-    const total = parseInt(res.headers.get('Content-Length') || '0', 10)
-    const reader = res.body.getReader()
-    const chunks = []
-    let received = 0
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-        chunks.push(value)
-        received += value.length
-        downloadAllBtn.textContent = total > 0
-        ? `Descargando... ${Math.round((received / total) * 100)}% (${(received / 1048576).toFixed(1)}/${(total / 1048576).toFixed(1)} MB)`
-        : `Descargando... ${(received / 1048576).toFixed(1)} MB`
-    }
-
-    const blob = new Blob(chunks, { type: 'application/zip' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${slug}-fotos.zip`
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
+    // Ya está listo — descarga nativa del navegador, directo a disco, sin pasar por RAM
+    downloadAllBtn.textContent = 'Iniciando descarga...'
+    window.location.href = `${API_BASE}/gallery/${slug}/download`
+    setTimeout(() => { downloadAllBtn.disabled = false; downloadAllBtn.innerHTML = downloadAllLabel }, 1500)
   }
 
   const grid = document.getElementById('photoGrid')

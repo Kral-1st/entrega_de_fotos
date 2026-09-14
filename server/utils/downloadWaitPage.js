@@ -65,44 +65,11 @@ function renderDownloadWaitPage(slug) {
                 return
         }
 
-        const res = await fetch(downloadUrl, { headers: { 'Accept': 'application/json' }, credentials: 'include' })
-
-        if (!res.ok) {
-            const data = await res.json().catch(() => ({}))
-            return showError(data.error || 'No se pudo generar el ZIP.')
-        }
-
-        title.textContent = 'Descargando tu álbum'
-        subtitle.textContent = ''
-        const total = parseInt(res.headers.get('Content-Length') || '0', 10)
-        const reader = res.body.getReader()
-        const chunks = []
-        let received = 0
-
-        while (true) {
-            const { done, value } = await reader.read()
-            if (done) break
-                chunks.push(value)
-                received += value.length
-                progressLabel.textContent = total > 0
-                ? \`\${Math.round((received / total) * 100)}% (\${(received / 1048576).toFixed(1)}/\${(total / 1048576).toFixed(1)} MB)\`
-                : \`\${(received / 1048576).toFixed(1)} MB\`
-        }
-
-        const blob = new Blob(chunks, { type: 'application/zip' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = '${slug}-fotos.zip'
-        document.body.appendChild(a)
-        a.click()
-        a.remove()
-        URL.revokeObjectURL(url)
-
         spinner.style.display = 'none'
         title.textContent = '¡Listo!'
         subtitle.textContent = 'Tu descarga debería empezar automáticamente.'
         progressLabel.textContent = ''
+        window.location.href = downloadUrl
     }
 
     function showError(msg) {
