@@ -157,6 +157,51 @@
     }
     .progress-label { font-size: .8rem; color: var(--text-2); display: flex; justify-content: space-between; }
 
+        /* Cola de subida (una fila por foto) */
+    .upload-queue-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-bottom: 12px;
+    }
+    .upload-queue-title { font-size: .85rem; color: var(--text-2); }
+    .upload-queue-actions { display: flex; gap: 8px; }
+    .upload-queue-list {
+      max-height: 320px; overflow-y: auto;
+      border-top: 1px solid var(--border);
+    }
+    .uq-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) 64px minmax(80px, 2fr) 96px 24px;
+      align-items: center; gap: 14px;
+      padding: 10px 4px;
+      border-bottom: 1px solid var(--border);
+      font-size: .8rem;
+    }
+    .uq-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .uq-size { color: var(--text-3); font-family: var(--font-mono); font-size: .75rem; text-align: right; }
+    .uq-row .progress-bar-wrap { margin: 0; }
+    .uq-status {
+      color: var(--text-2); text-align: right;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .uq-cancel {
+      background: none; border: none; color: var(--text-3);
+      cursor: pointer; font-size: .9rem; line-height: 1; padding: 2px;
+    }
+    .uq-cancel:hover { color: var(--danger-2); }
+    .uq-row[data-state="queued"] .progress-bar { background: var(--text-3); }
+    .uq-row[data-state="done"] .progress-bar { background: var(--success); }
+    .uq-row[data-state="done"] .uq-status { color: var(--success); }
+    .uq-row[data-state="error"] .progress-bar { background: var(--danger-2); width: 100% !important; }
+    .uq-row[data-state="error"] .uq-status { color: var(--danger-2); }
+    .uq-row[data-state="canceled"] { opacity: .5; }
+    .uq-row[data-state="done"] .uq-cancel,
+    .uq-row[data-state="error"] .uq-cancel,
+    .uq-row[data-state="canceled"] .uq-cancel { visibility: hidden; }
+    @media (max-width: 640px) {
+      .uq-row { grid-template-columns: minmax(0, 1fr) minmax(60px, 1fr) 80px 24px; }
+      .uq-size { display: none; }
+    }
+
     /* Sección fotos */
     .photos-header {
       display: flex;
@@ -409,13 +454,14 @@
 
       <!-- Progress -->
       <div class="upload-progress" id="uploadProgress">
-        <div class="progress-label">
-          <span id="progressText">Subiendo fotos...</span>
-          <span id="progressPct">0%</span>
+        <div class="upload-queue-head">
+          <span class="upload-queue-title" id="progressText">Subiendo fotos...</span>
+          <div class="upload-queue-actions">
+            <button type="button" class="btn btn--ghost btn--sm" id="retryFailedBtn" style="display:none">Reintentar fallidas</button>
+            <button type="button" class="btn btn--ghost btn--sm" id="closeQueueBtn">Cancelar todo</button>
+          </div>
         </div>
-        <div class="progress-bar-wrap">
-          <div class="progress-bar" id="progressBar"></div>
-        </div>
+        <div class="upload-queue-list" id="uploadQueue"></div>
       </div>
 
       <!-- Fotos -->

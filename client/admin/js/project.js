@@ -205,9 +205,13 @@ function setupUpload() {
   const zone = document.getElementById('uploadZone')
   const input = document.getElementById('fileInput')
   const progress = document.getElementById('uploadProgress')
-  const progressBar = document.getElementById('progressBar')
   const progressText = document.getElementById('progressText')
-  const progressPct = document.getElementById('progressPct')
+  const queueList = document.getElementById('uploadQueue')
+  const retryBtn = document.getElementById('retryFailedBtn')
+  const closeBtn = document.getElementById('closeQueueBtn')
+  const UPLOAD_CONCURRENCY = 3
+  let items = []
+  let running = false
 
   zone.addEventListener('click', () => input.click())
 
@@ -233,59 +237,163 @@ function setupUpload() {
     window.location.href = `${API_BASE}/admin/projects/${projectId}/download?token=${getToken()}`
   })
 
-  async function uploadFiles(files) {
-    progress.classList.add('active')
-    progressBar.style.width = '0%'
-    progressPct.textContent = '0%'
-    progressText.textContent = `Subiendo ${files.length} foto${files.length !== 1 ? 's' : ''}...`
+  // ── Cola de subida: un XHR por foto, 3 simultáneas ──────────────────────────
+  function fmtSize(b) {
+    return b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`
+  }
 
-    let uploaded = 0
-    let errors = 0
+  function countState(s) { return items.filter(i => i.state === s).length }
 
-    for (let i = 0; i < files.length; i++) {
+  function setState(item, state, label) {
+    item.state = state
+    item.row.dataset.state = state
+    item.status.textContent = label
+    item.status.title = label
+    const finished = items.filter(i => ['done', 'error', 'canceled'].includes(i.state)).length
+    if (running) progressText.textContent = `Subiendo fotos — ${finished} de ${items.length}`
+  }
+
+  function addItems(files) {
+    for (const file of files) {
+      const row = document.createElement('div')
+      row.className = 'uq-row'
+      row.innerHTML = `
+      <span class="uq-name"></span>
+      <span class="uq-size">${fmtSize(file.size)}</span>
+      <div class="progress-bar-wrap"><div class="progress-bar"></div></div>
+      <span class="uq-status"></span>
+      <button type="button" class="uq-cancel" title="Cancelar">✕</button>`
+      const name = row.querySelector('.uq-name')
+      name.textContent = file.name
+      name.title = file.name
+
+      const item = {
+        file, row, xhr: null, state: 'queued',
+        bar: row.querySelector('.progress-bar'),
+        status: row.querySelector('.uq-status')
+      }
+      row.querySelector('.uq-cancel').addEventListener('click', () => cancelItem(item))
+      queueList.appendChild(row)
+      items.push(item)
+      setState(item, 'queued', 'En cola')
+    }
+  }
+
+  function cancelItem(item) {
+    if (item.state === 'queued') setState(item, 'canceled', 'Cancelada')
+      else if (item.state === 'uploading' && item.xhr) item.xhr.abort()
+  }
+
+  function uploadOne(item) {
+    return new Promise((resolve) => {
       const form = new FormData()
-      form.append('photos', files[i])
+      form.append('photos', item.file)
 
-        try {
-          const res = await fetch(`${API_BASE}/admin/projects/${projectId}/photos`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${getToken()}` },
-                                  body: form
-          })
-          const data = await res.json()
-          if (res.ok) {
-            uploaded += data.uploaded
-            if (data.errors) errors += data.errors.length
-          } else {
-            errors++
-          }
-        } catch {
-          errors++
+        const xhr = new XMLHttpRequest()
+        item.xhr = xhr
+        xhr.open('POST', `${API_BASE}/admin/projects/${projectId}/photos`)
+        xhr.setRequestHeader('Authorization', `Bearer ${getToken()}`)
+
+        xhr.upload.onprogress = (e) => {
+          if (!e.lengthComputable) return
+            const pct = Math.round((e.loaded / e.total) * 100)
+            item.bar.style.width = `${pct}%`
+            item.status.textContent = pct >= 100 ? 'Procesando...' : `${pct}%`
         }
+        xhr.onload = () => {
+          let data = {}
+          try { data = JSON.parse(xhr.responseText) } catch {}
+          if (xhr.status >= 200 && xhr.status < 300 && data.uploaded > 0) {
+            item.bar.style.width = '100%'
+            setState(item, 'done', 'Listo')
+          } else {
+            setState(item, 'error', data.errors?.[0]?.error || data.error || `Error ${xhr.status}`)
+          }
+          resolve()
+        }
+        xhr.onerror = () => { setState(item, 'error', 'Error de red'); resolve() }
+        xhr.onabort = () => { setState(item, 'canceled', 'Cancelada'); resolve() }
+        xhr.send(form)
+    })
+  }
 
-        await new Promise(r => setTimeout(r, 500))
-
-        const pct = Math.round(((i + 1) / files.length) * 100)
-        progressBar.style.width = `${pct}%`
-        progressPct.textContent = `${pct}%`
-        progressText.textContent = `Subiendo ${i + 1} de ${files.length}...`
+  async function runQueue() {
+    const pending = items.filter(i => i.state === 'queued')
+    let next = 0
+    const worker = async () => {
+      while (next < pending.length) {
+        const item = pending[next++]
+        if (item.state !== 'queued') continue // cancelada mientras esperaba
+          setState(item, 'uploading', '0%')
+          await uploadOne(item)
+      }
     }
+    await Promise.all(Array.from({ length: Math.min(UPLOAD_CONCURRENCY, pending.length) }, worker))
+  }
 
+  function closeQueue() {
     progress.classList.remove('active')
+    zone.style.display = ''
+    queueList.innerHTML = ''
+    items = []
+  }
 
-    const msg = errors > 0
-    ? `${uploaded} subidas, ${errors} con error`
-    : `${uploaded} foto${uploaded !== 1 ? 's' : ''} subida${uploaded !== 1 ? 's' : ''}`
+  async function runAndFinish() {
+    if (running) return
+      running = true
+      retryBtn.style.display = 'none'
+      closeBtn.textContent = 'Cancelar todo'
 
-    showToast(msg, errors > 0 ? 'error' : 'success')
+      await runQueue()
+      running = false
 
-    // Actualizar grid con las fotos recién subidas (en estado pending)
-    await loadProject()
+      const done = countState('done')
+      const failed = countState('error')
+      const canceled = countState('canceled')
 
-    // Disparar procesamiento automático si hubo uploads exitosos
-    if (uploaded > 0) {
-      triggerProcessing()
+      // Actualizar grid con las fotos recién subidas (en estado pending)
+      if (done > 0) await loadProject()
+
+        const parts = [`${done} subida${done !== 1 ? 's' : ''}`]
+        if (failed) parts.push(`${failed} con error`)
+          if (canceled) parts.push(`${canceled} cancelada${canceled !== 1 ? 's' : ''}`)
+            const msg = parts.join(', ')
+
+            if (failed > 0) {
+              // Dejar la lista visible para poder ver qué falló y reintentar
+              progressText.textContent = msg
+              retryBtn.style.display = ''
+              closeBtn.textContent = 'Cerrar'
+            } else {
+              closeQueue()
+            }
+            showToast(msg, failed > 0 ? 'error' : 'success')
+
+            // Disparar procesamiento automático si hubo uploads exitosos
+            if (done > 0) triggerProcessing()
+  }
+
+  retryBtn.addEventListener('click', () => {
+    for (const item of items) {
+      if (item.state !== 'error') continue
+        item.bar.style.width = '0%'
+        setState(item, 'queued', 'En cola')
     }
+    runAndFinish()
+  })
+
+  closeBtn.addEventListener('click', () => {
+    if (running) items.forEach(cancelItem)
+      else closeQueue()
+  })
+
+  function uploadFiles(files) {
+    if (running) return
+      closeQueue()
+      zone.style.display = 'none'
+      progress.classList.add('active')
+      addItems(files)
+      runAndFinish()
   }
 }
 
