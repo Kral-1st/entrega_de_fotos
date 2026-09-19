@@ -17,9 +17,9 @@
   --text:         #f4f3f0;
   --text-dim:     #8d8b87;
   --text-faint:   #4a4846;
-  --accent:       #4f48cb;
+  --accent:       #48c4cb;
   --accent-hover: #4883cb;
-  --accent-2:     #48c4cb;
+  --accent-2:     #4f48cb;
   --danger:       #c0392b;
   --danger-2:     #e74c3c;
   --success:      #27ae60;
@@ -145,7 +145,7 @@ textarea.input { resize: vertical; min-height: 80px; }
 }
 .badge--active   { background: rgba(39,174,96,.15); color: var(--success); }
 .badge--inactive { background: rgba(141,139,135,.12); color: var(--text-dim); }
-.badge--pin      { background: rgba(79,72,203,.12); color: var(--accent); }
+.badge--pin      { background: rgba(255,47,110,.12); color: var(--accent); }
 
 /* ─── Toast ────────────────────────────────────────────────────────────────── */
 .toast {
