@@ -329,23 +329,29 @@ function navigate(dir) {
   updateLightboxContent()
 }
 
+let lightboxLoadToken = 0
+
 function updateLightboxContent() {
   const ph = photos[currentIndex]
   const img = document.getElementById('lightboxImg')
   const spinner = document.getElementById('lightboxSpinner')
+  const token = ++lightboxLoadToken // descarta cargas viejas si el usuario ya cambió de foto
 
   img.style.opacity = '0'
   spinner.style.display = 'flex'
 
   const preview = new Image()
   preview.onload = () => {
-    img.src = ph.preview_url
-    img.style.opacity = '1'
-    spinner.style.display = 'none'
+    if (token !== lightboxLoadToken) return
+      img.src = ph.preview_url
+      img.style.opacity = '1'
+      spinner.style.display = 'none'
   }
   preview.onerror = () => {
-    spinner.style.display = 'none'
-    img.style.opacity = '1'
+    if (token !== lightboxLoadToken) return
+      img.removeAttribute('src') // no dejar la foto anterior con el contador de la nueva
+      spinner.style.display = 'none'
+      img.style.opacity = '1'
   }
   preview.src = ph.preview_url
 
