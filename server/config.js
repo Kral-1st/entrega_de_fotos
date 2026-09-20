@@ -37,7 +37,7 @@ module.exports = {
   },
 
   upload: {
-    maxFileSize: 200 * 1024 * 1024, // 200MB por foto
+    maxFileSize: 5120 * 1024 * 1024, // 200MB por foto
     allowedMimes: ['image/jpeg', 'image/png', 'image/webp', 'image/tiff', 'image/heic'],
     thumbWidth: 400,
     previewWidth: 1200,
