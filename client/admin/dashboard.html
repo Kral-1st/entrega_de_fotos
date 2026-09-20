@@ -117,6 +117,54 @@
 
     /* Modal nuevo proyecto */
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+
+    /* Cola de subida del portafolio (una fila por foto) */
+    .upload-progress {
+      display: none;
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .upload-progress.active { display: block; }
+    .progress-bar-wrap { background: var(--bg-3); border-radius: 4px; height: 6px; overflow: hidden; }
+    .progress-bar { height: 100%; background: var(--accent); border-radius: 4px; transition: width .3s; width: 0; }
+    .upload-queue-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-bottom: 12px;
+    }
+    .upload-queue-title { font-size: .85rem; color: var(--text-2); }
+    .upload-queue-actions { display: flex; gap: 8px; }
+    .upload-queue-list { max-height: 320px; overflow-y: auto; border-top: 1px solid var(--border); }
+    .uq-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) 64px minmax(80px, 2fr) 96px 24px;
+      align-items: center; gap: 14px;
+      padding: 10px 4px;
+      border-bottom: 1px solid var(--border);
+      font-size: .8rem;
+    }
+    .uq-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .uq-size { color: var(--text-3); font-family: var(--font-mono); font-size: .75rem; text-align: right; }
+    .uq-status { color: var(--text-2); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .uq-cancel { background: none; border: none; color: var(--text-3); cursor: pointer; font-size: .9rem; line-height: 1; padding: 2px; }
+    .uq-cancel:hover { color: var(--danger-2); }
+    .uq-row[data-state="queued"] .progress-bar { background: var(--text-3); }
+    .uq-row[data-state="done"] .progress-bar { background: var(--success); }
+    .uq-row[data-state="done"] .uq-status { color: var(--success); }
+    .uq-row[data-state="error"] .progress-bar { background: var(--danger-2); width: 100% !important; }
+    .uq-row[data-state="error"] .uq-status { color: var(--danger-2); }
+    .uq-row[data-state="canceled"] { opacity: .5; }
+    .uq-row[data-state="done"] .uq-cancel,
+    .uq-row[data-state="error"] .uq-cancel,
+    .uq-row[data-state="canceled"] .uq-cancel { visibility: hidden; }
+    @media (max-width: 640px) {
+      .uq-row { grid-template-columns: minmax(0, 1fr) minmax(60px, 1fr) 80px 24px; }
+      .uq-size { display: none; }
+    }
+
   </style>
   <link rel="icon" href="/favicon.ico">
 </head>
@@ -159,11 +207,21 @@
             <h2 style="font-size:1.1rem">Portafolio público</h2>
             <p style="color:var(--text-2);font-size:.875rem;margin-top:4px">Imágenes en la página principal</p>
           </div>
-          <label class="btn btn--ghost btn--sm" style="cursor:pointer">
+          <label id="portfolioAddBtn" class="btn btn--ghost btn--sm" style="cursor:pointer">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Agregar foto
             <input type="file" id="portfolioInput" accept="image/jpeg,image/png,image/webp" style="display:none" multiple>
           </label>
+        </div>
+        <div class="upload-progress" id="portfolioQueue">
+          <div class="upload-queue-head">
+            <span class="upload-queue-title" id="portfolioQueueText">Subiendo fotos...</span>
+            <div class="upload-queue-actions">
+              <button type="button" class="btn btn--ghost btn--sm" id="portfolioRetryBtn" style="display:none">Reintentar fallidas</button>
+              <button type="button" class="btn btn--ghost btn--sm" id="portfolioCloseBtn">Cancelar todo</button>
+            </div>
+          </div>
+          <div class="upload-queue-list" id="portfolioQueueList"></div>
         </div>
         <div id="portfolioGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">
           <div style="color:var(--text-3);font-size:.85rem;padding:20px 0">Cargando...</div>
