@@ -192,6 +192,14 @@
   .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.95); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; }
   .lightbox.open { opacity: 1; pointer-events: all; }
   .lightbox img { max-width: 92vw; max-height: 88vh; object-fit: contain; }
+  .lightbox img { transition: opacity .2s; }
+  .lightbox-spinner {
+    display: none; position: absolute; top: 50%; left: 50%;
+    width: 36px; height: 36px; margin: -18px 0 0 -18px;
+    border: 3px solid rgba(255,255,255,.15); border-top-color: rgba(255,255,255,.7);
+    border-radius: 50%; animation: spin .7s linear infinite;
+    pointer-events: none; /* que no tape la X ni los botones */
+  }
   .lightbox-close { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,.06); border: 1px solid var(--line); color: #fff; border-radius: var(--radius); width: 40px; height: 40px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   .lightbox-close:hover { background: rgba(255,255,255,.14); }
 
@@ -300,6 +308,7 @@
     <button class="lightbox-close" id="lightboxClose" aria-label="Cerrar">✕</button>
     <button class="lightbox-nav lightbox-nav--prev" id="lightboxPrev" aria-label="Anterior">‹</button>
     <img id="lightboxImg" src="" alt="">
+    <div class="lightbox-spinner" id="lightboxSpinner"></div>
     <button class="lightbox-nav lightbox-nav--next" id="lightboxNext" aria-label="Siguiente">›</button>
     <span class="lightbox-counter" id="lightboxCounter"></span>
   </div>
@@ -546,23 +555,44 @@
       }
     }
 
-        const lightbox = document.getElementById('lightbox')
+    const lightbox = document.getElementById('lightbox')
     const lightboxImg = document.getElementById('lightboxImg')
+    const lightboxSpinner = document.getElementById('lightboxSpinner')
     const lightboxCounter = document.getElementById('lightboxCounter')
     const LIGHTBOX_PATH = '/portafolio-foto'
     let preLightboxPath = '/'
     let lbIndex = 0
+    let lbLoadToken = 0
 
     function showLightboxPhoto() {
       const total = portfolioItems.length
       const item = portfolioItems[lbIndex]
-      lightboxImg.src = item.url
+      const token = ++lbLoadToken // descarta cargas viejas si ya cambiaron de foto
+
+      // Ocultar lo que hubiera (la foto anterior o una a medio bajar) hasta tener la nueva completa
+      lightboxImg.style.opacity = '0'
+      lightboxSpinner.style.display = 'block'
+
+      const pre = new Image()
+      pre.onload = () => {
+        if (token !== lbLoadToken) return
+        lightboxImg.src = item.url
+        lightboxImg.style.opacity = '1'
+        lightboxSpinner.style.display = 'none'
+        // precarga las vecinas solo cuando ya cargó esta, para no competir por el ancho de banda
+        ;[1, -1].forEach(d => { new Image().src = portfolioItems[(lbIndex + d + total) % total].url })
+      }
+      pre.onerror = () => {
+        if (token !== lbLoadToken) return
+        lightboxImg.removeAttribute('src')
+        lightboxSpinner.style.display = 'none'
+      }
+      pre.src = item.url
+
       lightboxCounter.textContent = `${lbIndex + 1} / ${total}`
       document.getElementById('lightboxPrev').style.display = total > 1 ? '' : 'none'
       document.getElementById('lightboxNext').style.display = total > 1 ? '' : 'none'
       sessionStorage.setItem('lastLightboxUrl', item.url)
-      // precarga las fotos vecinas para que el cambio sea inmediato
-      ;[1, -1].forEach(d => { new Image().src = portfolioItems[(lbIndex + d + total) % total].url })
     }
 
     function openLightbox(index) {
