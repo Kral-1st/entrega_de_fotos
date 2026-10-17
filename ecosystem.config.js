@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: process.env.NAME,
+      name: "entrega-fotos-api",
       script: 'server/index.js',
       cwd: process.env.CWD,
       instances: 1,
