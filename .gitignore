@@ -9,3 +9,4 @@ logs/
 package-lock.json
 watermark/venv
 zip-cache/
+*.bak
